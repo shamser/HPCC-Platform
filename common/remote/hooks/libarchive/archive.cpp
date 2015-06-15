@@ -185,7 +185,7 @@ public:
 #else
         archive_read_support_format_all(archive);
 #if (ARCHIVE_VERSION_NUMBER >= 3000000)
-        archive_read_support_filter_all(archive);
+        //archive_read_support_filter_all(archive);
 #else
         archive_read_support_compression_all(archive);
 #endif
@@ -495,7 +495,7 @@ public:
 #else
         archive_read_support_format_all(archive);
 #if (ARCHIVE_VERSION_NUMBER >= 3000000)
-        archive_read_support_filter_all(archive);
+        //archive_read_support_filter_all(archive);
 #else
         archive_read_support_compression_all(archive);
 #endif
