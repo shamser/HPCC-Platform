@@ -5505,18 +5505,82 @@ static void stripQuotes(unsigned & start, unsigned & end, const char * buffer)
     }
 }
 
-static bool matchOption(unsigned & cur, unsigned max, const char * buffer, unsigned lenMatch, const char * match)
+static bool matchOption(unsigned cur, unsigned max, const char * buffer, unsigned lenMatch, const char * match, unsigned & valueStart, unsigned & valueEnd)
 {
+    bool openbracket = false;
+    bool optioninquotes = false;
+    bool valueinquotes = false;
+
+    valueStart = 0;
+    valueEnd = 0;
+
+    if ((cur < max) && ('(' == buffer[cur]))
+    {
+        openbracket = true;
+        cur = skipSpace(cur+1, max, buffer);
+        if ((cur < max) && ('\'' == buffer[cur]))
+        {
+            optioninquotes = true;
+            ++cur;
+        }
+    }
     if (cur + lenMatch > max)
         return false;
     if (memicmp(buffer+cur, match, lenMatch) != 0)
         return false;
-    if (cur + lenMatch < max)
+    cur += lenMatch;
+    if (optioninquotes)
     {
-        if (isalnum(buffer[cur+lenMatch]))
+        if ((cur < max) && ('\'' == buffer[cur]))
+            ++cur;
+        else
             return false;
     }
-    cur = skipSpace(cur+lenMatch, max, buffer);
+    else if (cur < max)
+    {
+        if (isalnum(buffer[cur]))
+            return false;
+    }
+    cur = skipSpace(cur, max, buffer);
+
+    if ((cur < max) && (',' == buffer[cur]))
+        cur = skipSpace(cur+1, max, buffer);
+    else if (openbracket)
+        return false;
+
+    if (cur >= max) return false;
+
+    if ('\'' == buffer[cur])
+    {
+        ++cur;
+        valueinquotes = true;
+        valueStart = cur;
+
+        while ((cur < max) && ('\'' != buffer[cur]))
+            ++cur;
+
+        if (cur >= max) return false;
+
+        valueEnd = cur - 1;
+    }
+    else
+        valueStart = cur;
+
+    if (openbracket)
+    {
+        while ((cur < max) && (')' != buffer[cur]))
+            ++cur;
+
+        if (cur >= max) return false;
+
+        valueEnd = cur - 1;
+    }
+    else
+        valueEnd = max;
+
+    if (!valueinquotes)
+        valueEnd = trimSpace(valueEnd,buffer);
+
     return true;
 }
 
@@ -5536,7 +5600,7 @@ IHqlExpression * extractCppBodyAttrs(unsigned lenBuffer, const char * buffer)
                 i+=2;
                 while (i < lenBuffer && ('*' != buffer[i-1] || '/' != buffer[i])) 
                     ++i;
-                next = 0;    // subsequent processing ignore the current '/' character
+                next = buffer[i];
             }
             break;
         case '/':
@@ -5545,7 +5609,7 @@ IHqlExpression * extractCppBodyAttrs(unsigned lenBuffer, const char * buffer)
                 ++i;
                 while (i < lenBuffer && !iseol(buffer[i]))
                     ++i;
-                next = 0;    // subsequent processing ignore the current '/' character
+                next = buffer[i];
             }
             break;
         case ' ': case '\t':
@@ -5556,36 +5620,44 @@ IHqlExpression * extractCppBodyAttrs(unsigned lenBuffer, const char * buffer)
             {
                 if ((i + 1 + 6 < lenBuffer) && memicmp(buffer+i+1, "option", 6) == 0)
                 {
+                    unsigned valueStart, valueEnd;
                     unsigned start = skipSpace(i+1+6, lenBuffer, buffer);
                     unsigned end = start;
                     while (end < lenBuffer && !iseol((byte)buffer[end]))
                         end++;
-                    end = trimSpace(end, buffer);
-                    if (matchOption(start, lenBuffer, buffer, 4, "pure"))
+                    i = end;
+                    if (matchOption(start, end, buffer, 4, "pure", valueStart, valueEnd))
                         attrs.setown(createComma(attrs.getClear(), createAttribute(pureAtom)));
-                    else if (matchOption(start, lenBuffer, buffer, 4, "once"))
+                    else if (matchOption(start, end, buffer, 4, "once", valueStart, valueEnd))
                         attrs.setown(createComma(attrs.getClear(), createAttribute(onceAtom)));
-                    else if (matchOption(start, lenBuffer, buffer, 6, "action"))
+                    else if (matchOption(start, end, buffer, 6, "action", valueStart, valueEnd))
                         attrs.setown(createComma(attrs.getClear(), createAttribute(actionAtom)));
-                    else if (matchOption(start, lenBuffer, buffer, 6, "source"))
+                    else if (matchOption(start, end, buffer, 6, "source", valueStart, valueEnd))
                     {
-                        stripQuotes(start, end, buffer);
-                        Owned<IValue> restOfLine = createUtf8Value(end-start, buffer+start, makeUtf8Type(UNKNOWN_LENGTH, NULL));
-                        OwnedHqlExpr arg = createConstant(restOfLine.getClear());
-                        attrs.setown(createComma(attrs.getClear(), createAttribute(sourceAtom, arg.getClear())));
+                        if ((valueEnd-valueStart) > 0)
+                        {
+                            Owned<IValue> restOfLine = createUtf8Value(valueEnd-valueStart, buffer+valueStart, makeUtf8Type(UNKNOWN_LENGTH, NULL));
+                            OwnedHqlExpr arg = createConstant(restOfLine.getClear());
+                            attrs.setown(createComma(attrs.getClear(), createAttribute(sourceAtom, arg.getClear())));
+                        }
                     }
-                    else if (matchOption(start, lenBuffer, buffer, 7, "library"))
+                    else if (matchOption(start, end, buffer, 7, "library", valueStart, valueEnd))
                     {
-                        stripQuotes(start, end, buffer);
-                        Owned<IValue> restOfLine = createUtf8Value(end-start, buffer+start, makeUtf8Type(UNKNOWN_LENGTH, NULL));
-                        OwnedHqlExpr arg = createConstant(restOfLine.getClear());
-                        attrs.setown(createComma(attrs.getClear(), createAttribute(libraryAtom, arg.getClear())));
+                        if ((valueEnd-valueStart) > 0)
+                        {
+                            Owned<IValue> restOfLine = createUtf8Value(valueEnd-valueStart, buffer+valueStart, makeUtf8Type(UNKNOWN_LENGTH, NULL));
+                            OwnedHqlExpr arg = createConstant(restOfLine.getClear());
+                            attrs.setown(createComma(attrs.getClear(), createAttribute(libraryAtom, arg.getClear())));
+                        }
                     }
-                    else if (matchOption(start, lenBuffer, buffer, 4, "link"))
+                    else if (matchOption(start, end, buffer, 4, "link", valueStart, valueEnd))
                     {
-                        Owned<IValue> restOfLine = createUtf8Value(end-start, buffer+start, makeUtf8Type(UNKNOWN_LENGTH, NULL));
-                        OwnedHqlExpr arg = createConstant(restOfLine.getClear());
-                        attrs.setown(createComma(attrs.getClear(), createAttribute(linkAtom, arg.getClear())));
+                        if ((valueEnd-valueStart) > 0)
+                        {
+                            Owned<IValue> restOfLine = createUtf8Value(valueEnd-valueStart, buffer+valueStart, makeUtf8Type(UNKNOWN_LENGTH, NULL));
+                            OwnedHqlExpr arg = createConstant(restOfLine.getClear());
+                            attrs.setown(createComma(attrs.getClear(), createAttribute(linkAtom, arg.getClear())));
+                        }
                     }
                 }
             }
