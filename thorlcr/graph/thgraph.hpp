@@ -74,7 +74,8 @@ enum msgids
     GraphInit,
     GraphEnd,
     GraphAbort,
-    GraphGetResult
+    GraphGetResult,
+    DebugRequest
 };
 
 interface ICodeContextExt : extends ICodeContext
@@ -709,6 +710,7 @@ public:
 //  virtual void getResult(size32_t & retSize, void * & ret, unsigned id);
 //  virtual void getLinkedResult(unsigned & count, byte * * & ret, unsigned id);
     virtual IEclGraphResults *evaluate(unsigned parentExtractSz, const byte * parentExtract);
+
 friend class CGraphElementBase;
 };
 
@@ -847,6 +849,7 @@ public:
     unsigned __int64 getOptUInt64(const char *opt, unsigned __int64 dft=0) { return (unsigned __int64)getOptInt64(opt, dft); }
 
     virtual void abort(IException *e);
+    virtual void debugRequest(CMessageBuffer &msg, const char *request) const { }
 
 //
     virtual void addCreatedFile(const char *file) { assertex(false); }
