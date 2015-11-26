@@ -372,6 +372,7 @@ static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int 
   RECORD
   RECORDOF
   RECOVERY
+  REFRESH
   REGEXFIND
   REGEXREPLACE
   REGROUP
@@ -1741,6 +1742,14 @@ persistOpt
     : fewMany
     | expireAttr
     | clusterAttr
+    | REFRESH '(' TOK_TRUE ')'
+                        {
+                            $$.setExpr(createExprAttribute(refreshAtom, createConstant(true)), $1);
+                        }
+    | REFRESH '(' TOK_FALSE ')'
+                        {
+                            $$.setExpr(createExprAttribute(refreshAtom, createConstant(false)), $1);
+                        }
     | SINGLE            {   $$.setExpr(createAttribute(singleAtom), $1); }
     | MULTIPLE          {   $$.setExpr(createExprAttribute(multipleAtom), $1); }
     | MULTIPLE '(' expression ')'

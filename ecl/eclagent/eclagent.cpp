@@ -2502,6 +2502,8 @@ bool EclAgent::checkPersistUptoDate(IRuntimeWorkflowItem & item, const char * lo
         errText.appendf("Rebuilding PERSIST('%s'): Saved CRC isn't present", logicalName);
     else if (isFile && !fileExists(logicalName))
         errText.appendf("Rebuilding PERSIST('%s'): Persistent file does not exist", logicalName);
+    else if (!item.queryPersistRefresh())
+        return true;
     else
     {
         unsigned savedEclCRC = (unsigned)getResultInt(eclName, (unsigned)-2);
