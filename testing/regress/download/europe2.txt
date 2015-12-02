@@ -1,0 +1,5 @@
+#Country,Population,Area,Pop. Density,Literacy,Phones
+Spain ,40397842,504782,80.0,97.9,453.5
+Sweden ,9016596,449964,20.0,99.0,715.0
+Switzerland ,7523934,41290,182.2,99.0,680.9
+UK ,60609153,244820,247.6,99.0,543.5

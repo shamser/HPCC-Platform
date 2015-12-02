@@ -5080,10 +5080,7 @@ void GlobalAttributeInfo::extractStoredInfo(IHqlExpression * expr, IHqlExpressio
             getStringValue(s, codehash);
             storedName.setown(createConstant(s.str()));
         }
-        if (expr->hasAttribute(refreshAtom))
-            persistRefresh = getBoolValue(queryAttributeChild(expr,refreshAtom,0), true);
-        else
-            persistRefresh = true;
+	persistRefresh = getBoolValue(queryAttributeChild(expr, refreshAtom, 0), true);
         break;
     case no_global:
         throwUnexpected();

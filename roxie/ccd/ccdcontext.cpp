@@ -360,10 +360,12 @@ private:
 
         if (!isResult(lfn, ResultSequencePersist))
             errText.appendf("Building PERSIST('%s'): It hasn't been calculated before", logicalName);
-        else if (!isResult(crcName, ResultSequencePersist))
-            errText.appendf("Rebuilding PERSIST('%s'): Saved CRC isn't present", logicalName);
         else if (isFile && !fileExists(lfn))
             errText.appendf("Rebuilding PERSIST('%s'): Persistent file does not exist", logicalName);
+	else if (!item.queryPersistRefresh())
+	  return true;
+        else if (!isResult(crcName, ResultSequencePersist))
+            errText.appendf("Rebuilding PERSIST('%s'): Saved CRC isn't present", logicalName);
         else
         {
             unsigned savedEclCRC = (unsigned) getResultInt(eclName, ResultSequencePersist);
