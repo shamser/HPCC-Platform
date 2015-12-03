@@ -29,7 +29,6 @@ string OriginalTextFilesEclPath := '' : STORED('OriginalTextFilesEclPath');
 string OriginalTextFilesOsPath := '' : STORED('OriginalTextFilesOsPath');
 
 persistRefresh := #IFDEFINED(root.persistRefresh, true);
-deleteFiles := #IFDEFINED(root.deleteFiles, true);
 
 #IF (persistRefresh=true)
 InputFile := OriginalTextFilesOsPath + '/download/europe1.txt';
@@ -55,11 +54,7 @@ END;
 
 ds := DATASET(DestFile, rec, CSV(HEADING(1), SEPARATOR(','), QUOTE([])));
 
-#IF (persistRefresh=true)
-    CountriesDS := ds:PERSIST('~REGRESS::PersistRefresh', SINGLE, REFRESH(true));
-#ELSE
-    CountriesDS := ds:PERSIST('~REGRESS::PersistRefresh', SINGLE, REFRESH(false));
-#END
+CountriesDS := ds:PERSIST('~REGRESS::PersistRefresh', SINGLE, REFRESH(persistRefresh));
 
 OutputResults := OUTPUT(CountriesDS);
 

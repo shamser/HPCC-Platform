@@ -1742,13 +1742,10 @@ persistOpt
     : fewMany
     | expireAttr
     | clusterAttr
-    | REFRESH '(' TOK_TRUE ')'
+    | REFRESH '(' expression ')'
                         {
-                            $$.setExpr(createExprAttribute(refreshAtom, createConstant(true)), $1);
-                        }
-    | REFRESH '(' TOK_FALSE ')'
-                        {
-                            $$.setExpr(createExprAttribute(refreshAtom, createConstant(false)), $1);
+                            parser->normalizeExpression($3, type_boolean, true);
+                            $$.setExpr(createExprAttribute(refreshAtom, $3.getExpr()), $1);
                         }
     | SINGLE            {   $$.setExpr(createAttribute(singleAtom), $1); }
     | MULTIPLE          {   $$.setExpr(createExprAttribute(multipleAtom), $1); }
