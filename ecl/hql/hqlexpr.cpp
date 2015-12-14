@@ -1282,6 +1282,7 @@ const char *getOpString(node_operator op)
     case no_keyunicode: return "KEYUNICODE";
     case no_parse: return "PARSE";
     case no_newparse: return "PARSE";
+    case no_strparse: return "PARSE";
     case no_skip: return "SKIP";
     case no_matched: return "MATCHED";
     case no_matchtext: return "MATCHTEXT";
@@ -1529,7 +1530,6 @@ const char *getOpString(node_operator op)
     case no_unused50: case no_unused52:
     case no_unused80:
     case no_unused81:
-    case no_unused83:
     case no_unused102:
         return "unused";
     /* if fail, use "hqltest -internal" to find out why. */
@@ -1930,6 +1930,7 @@ childDatasetType getChildDatasetType(IHqlExpression * expr)
     case no_notwithin:
     case no_parse:
     case no_xmlparse:
+    case no_strparse:
     case no_compound_fetch:
     case no_topn:
     case no_distributer:
@@ -2211,6 +2212,7 @@ inline unsigned doGetNumChildTables(IHqlExpression * dataset)
     case no_xmlparse:
     case no_newparse:
     case no_newxmlparse:
+    case no_strparse:
     case no_compound_fetch:
     case no_topn:
     case no_distributer:
@@ -2563,6 +2565,7 @@ bool definesColumnList(IHqlExpression * dataset)
     case no_xmlparse:
     case no_newparse:
     case no_newxmlparse:
+    case no_strparse:
     case no_fail:
     case no_skip:
     case no_activetable:
@@ -2740,6 +2743,7 @@ IHqlExpression * queryNewColumnProvider(IHqlExpression * expr)
     case no_denormalize:
     case no_denormalizegroup:
     case no_parse:
+    case no_strparse:
     case no_soapcall:
     case no_httpcall:
     case no_newxmlparse:

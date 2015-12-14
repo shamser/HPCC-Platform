@@ -9065,6 +9065,16 @@ simpleDataSet
                             args.add(*$3.getExpr(), 0);
                             $$.setExpr(createDataset(no_chooseds, args), $1);
                         }
+    | PARSE '(' expression ',' startRootPattern ',' recordDef endRootPattern doParseFlags ')'
+                        {
+                            parser->normalizeExpression($3, type_stringorunicode, false);
+                            parser->checkOutputRecord($7, false);
+                            IHqlExpression * ds = createDataset(no_strparse, $3.getExpr(), createComma($5.getExpr(), $7.getExpr(), $9.getExpr()));
+                            if (ds->hasAttribute(tomitaAtom) && (ds->queryChild(2)->queryType()->getTypeCode() == type_pattern))
+                                parser->reportError(ERR_EXPECTED_RULE, $5, "Expected a rule as parameter to PARSE");
+                            $$.setExpr(ds);
+                            $$.setPosition($1);
+                        }
     | PARSE '(' startTopLeftSeqFilter ',' expression ',' startRootPattern ',' recordDef endRootPattern endTopLeftFilter doParseFlags ')' endSelectorSequence
                         {
                             parser->normalizeExpression($5, type_stringorunicode, false);

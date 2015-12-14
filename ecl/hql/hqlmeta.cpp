@@ -2562,6 +2562,7 @@ void calculateDatasetMeta(CHqlMetaInfo & meta, IHqlExpression * expr)
         break;
     case no_parse:
     case no_xmlparse:
+    case no_strparse:
         {
             //Assume we can't work out anything about the sort order/grouping/distribution.
             //Not strictly true, but it will do for the moment.
@@ -3105,6 +3106,10 @@ ITypeInfo * calculateDatasetType(node_operator op, const HqlExprArray & parms)
         break;
     case no_parse:
         recordArg = 3;
+        nowGrouped = isGrouped(datasetType);
+        break;
+    case no_strparse:
+        recordArg = 2;
         nowGrouped = isGrouped(datasetType);
         break;
     case no_xmlparse:

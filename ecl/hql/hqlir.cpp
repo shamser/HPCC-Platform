@@ -427,6 +427,7 @@ const char * getOperatorIRText(node_operator op)
     EXPAND_CASE(no,notify);
     EXPAND_CASE(no,parse);
     EXPAND_CASE(no,newparse);
+    EXPAND_CASE(no,strparse);
     EXPAND_CASE(no,skip);
     EXPAND_CASE(no,matched);
     EXPAND_CASE(no,matchtext);
@@ -457,7 +458,6 @@ const char * getOperatorIRText(node_operator op)
     EXPAND_CASE(no,outputscalar);
     EXPAND_CASE(no,matchunicode);
     EXPAND_CASE(no,pat_validate);
-    EXPAND_CASE(no,unused83);
     EXPAND_CASE(no,existsgroup);
     EXPAND_CASE(no,pat_use);
     EXPAND_CASE(no,unused13);
