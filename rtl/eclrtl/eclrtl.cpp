@@ -4892,6 +4892,17 @@ public:
         }
     }
 
+    bool nextMatch()
+    {
+        if (!matched || !sample)
+            return false;
+
+        matched = boost::regex_search(subs[0].second, subs, *regEx);
+        matched = matched && (subs[0].second > subs[0].first);
+
+        return matched;
+    }
+
     char const * findvstr(unsigned outlen, char * out, unsigned n = 0)
     {
         if (matched && (n < subs.size()))
@@ -5029,6 +5040,18 @@ public:
             outlen = 0;
             out = NULL;
         }
+    }
+
+    bool nextMatch()
+    {
+        if (!matched || !sample.length())
+            return false;
+
+        matched = matcher->find();
+        if (matched)
+            matchedSize = (unsigned)matcher->groupCount() + 1;
+
+        return matched;
     }
 
     UChar const * findvstr(unsigned outlen, UChar * out, unsigned n = 0)

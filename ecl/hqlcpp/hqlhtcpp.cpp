@@ -17800,6 +17800,33 @@ void HqlCppTranslator::doBuildAssignRegexFindReplace(BuildCtx & ctx, const CHqlB
     doBuildNewRegexFindReplace(ctx, &target, expr, NULL);
 }
 
+// TODO: SHAMSER
+void HqlCppTranslator::doBuildExprRegexFindSet(BuildCtx & ctx, IHqlExpression * expr, CHqlBoundExpr & bound)
+{
+    CHqlBoundExpr boundMatch;
+    if (ctx.getMatchExpr(expr, boundMatch))
+    {
+        bound.set(boundMatch);
+        return;
+    }
+
+    IHqlExpression * pattern = expr->queryChild(0);
+    IHqlExpression * search = expr->queryChild(1);
+    bool isUnicode = isUnicodeType(search->queryType());
+    IHqlExpression * compiled = doBuildRegexCompileInstance(ctx, pattern, isUnicode, !expr->hasAttribute(noCaseAtom));
+
+    // Because the search instance is created locally, the search parameter is always going to be valid
+    // as long as the find instance.  Only exception could be if call created a temporary class instance.
+    bool needToKeepSearchString = true;
+    IHqlExpression * findInstance = doBuildRegexFindInstance(ctx, compiled, search, needToKeepSearchString);
+
+    HqlExprArray args;
+    args.append(*LINK(findInstance));
+    //args.append(*LINK(expr->queryChild(2)));
+    IIdAtom * func= isUnicode ? regexNewUStrFoundXId : regexNewStrFoundXId;
+    OwnedHqlExpr call = bindFunctionCall(func, args);
+    buildExprOrAssign(ctx, NULL, call, &bound);
+}
 
 //---------------------------------------------------------------------------
 //-- no_null [DATASET] --

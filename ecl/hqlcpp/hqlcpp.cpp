@@ -2867,6 +2867,10 @@ void HqlCppTranslator::buildExpr(BuildCtx & ctx, IHqlExpression * expr, CHqlBoun
 {
     node_operator op = expr->getOperator();
 
+StringBuffer msg2;
+toECL(expr, msg2, true);
+PrintLog("HqlCppTranslator::buildExpr %s(%d): %s",getOpString(op),(int) op, msg2.str());
+//EclIR::dbglogIR(expr);
     switch (op)
     {
     case no_counter:
@@ -2936,6 +2940,9 @@ void HqlCppTranslator::buildExpr(BuildCtx & ctx, IHqlExpression * expr, CHqlBoun
     case no_regex_find:
     case no_regex_replace:
         doBuildExprRegexFindReplace(ctx, expr, tgt);
+        return;
+    case no_regex_findset:
+        doBuildExprRegexFindSet(ctx, expr, tgt);
         return;
     case no_skip:
     case no_assert:

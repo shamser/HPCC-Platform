@@ -2154,6 +2154,83 @@ IHqlExpression * foldConstantOperator(IHqlExpression * expr, unsigned foldOption
             }
             break;
         }
+    case no_regex_findset:
+        {
+            IValue * t0 = expr->queryChild(0)->queryValue();
+            IValue * t1 = expr->queryChild(1)->queryValue();
+            IHqlExpression * c2 = queryRealChild(expr, 2);
+            IValue * t2 = c2 ? c2->queryValue() : NULL;
+            if (t0 && (!c2 || t2))
+            {
+                if(isUnicodeType(t0->queryType()))
+                {
+                    HqlExprArray results;
+                    unsigned plen = t0->queryType()->getStringLen();
+                    UChar * pattern = (UChar *)malloc((plen+1)*2);
+                    t0->getUCharStringValue(plen+1, pattern); //plen+1 so get null-terminated
+                    ICompiledUStrRegExpr * compiled = rtlCreateCompiledUStrRegExpr(pattern, !expr->hasAttribute(noCaseAtom));
+
+                    if (t1)
+                    {
+                        unsigned slen = t1->queryType()->getStringLen();
+                        UChar * search = (UChar *)malloc((slen)*2);
+                        t1->getUCharStringValue(slen, search);
+
+                        IUStrRegExprFindInstance * match = compiled->find(search, 0, slen);
+
+                        while (match->found())
+                        {
+                            size32_t len;
+                            UChar * data;
+                            match->getMatchX(len, data, (unsigned)0);
+
+                            results.append(*createConstant(createUnicodeValue(len, data,t0->queryType())));
+
+                            rtlFree(data);
+                            match->nextMatch();
+                        }
+                        rtlDestroyUStrRegExprFindInstance(match);
+                        free(search);
+                    }
+                    rtlDestroyCompiledUStrRegExpr(compiled);
+                    free(pattern);
+                    return createValue(no_list, expr->getType(), results);
+                }
+                else
+                {
+                    StringBuffer pattern;
+                    t0->getStringValue(pattern);
+
+                    rtlCompiledStrRegex compiled;
+                    compiled.setPattern(pattern.str(), !expr->hasAttribute(noCaseAtom));
+                    if (t1)
+                    {
+                        HqlExprArray results;
+                        StringBuffer pattern, search;
+                        t0->getStringValue(pattern);
+                        t1->getStringValue(search);
+                        rtlCompiledStrRegex compiled;
+                        compiled.setPattern(pattern.str(), !expr->hasAttribute(noCaseAtom));
+                        IStrRegExprFindInstance * match = compiled->find(search.str(), 0, search.length(), true);
+
+                        while (match->found())
+                        {
+                            size32_t len;
+                            char * data;
+                            match->getMatchX(len, data, 0);
+                            results.append(*createConstant(createStringValue(data, len)));
+
+                            rtlFree(data);
+                            match->nextMatch();
+                        }
+
+                        rtlDestroyStrRegExprFindInstance(match);
+                        return createValue(no_list, expr->getType(), results);
+                    }
+                }
+            }
+            break;
+        }
     case no_regex_replace:
         {
             IValue * t0 = expr->queryChild(0)->queryValue();
