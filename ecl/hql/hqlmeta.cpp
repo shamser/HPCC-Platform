@@ -3305,6 +3305,7 @@ ITypeInfo * calculateDatasetType(node_operator op, const HqlExprArray & parms)
     case no_keyeddistribute:
     case no_subsort:
     case no_select:
+    case no_regex_findset:
         type.setown(dataset->getType());
         break;
     case no_distribute:

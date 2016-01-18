@@ -4892,6 +4892,43 @@ public:
         }
     }
 
+    bool nextMatch()
+    {
+        if (!matched)
+            return false;
+
+        matched = boost::regex_search(subs[0].second, subs, *regEx);
+        matched = matched && (subs[0].second > subs[0].first);
+
+        return matched;
+    }
+
+    void getMatchSet(bool  & __isAllResult, size32_t & __resultBytes, void * & __result)
+    {
+        rtlRowBuilder out;
+        byte *outData;
+        size32_t outBytes = 0;
+
+        while (matched)
+        {
+            rtlDataAttr str;
+            size32_t lenBytes = subs[0].second - subs[0].first;
+
+            out.ensureAvailable(outBytes + lenBytes + sizeof(size32_t));
+            outData = out.getbytes() + outBytes;
+            * (size32_t *) outData = lenBytes;
+
+            rtlStrToStr(lenBytes, outData+sizeof(size32_t), lenBytes, subs[0].first);
+            outBytes += lenBytes + sizeof(size32_t);
+
+            matched = boost::regex_search(subs[0].second, subs, *regEx);
+            matched = matched && (subs[0].second > subs[0].first);
+        }
+        __isAllResult = false;
+        __resultBytes = outBytes;
+        __result = out.detachdata();
+    };
+
     char const * findvstr(unsigned outlen, char * out, unsigned n = 0)
     {
         if (matched && (n < subs.size()))
@@ -5029,6 +5066,49 @@ public:
             outlen = 0;
             out = NULL;
         }
+    }
+
+    bool nextMatch()
+    {
+        if (!matched) return false;
+
+        matched = matcher->find();
+        if (matched)
+            matchedSize = (unsigned)matcher->groupCount() + 1;
+
+        return matched;
+    }
+
+    void getMatchSet(bool  & __isAllResult, size32_t & __resultBytes, void * & __result)
+    {
+        rtlRowBuilder out;
+        byte *outData;
+        size32_t outBytes = 0;
+
+        while (matched)
+        {
+            rtlDataAttr str;
+
+            UErrorCode uerr = U_ZERO_ERROR;
+            int32_t start = matcher->start(uerr);
+            int32_t end = matcher->end(uerr);
+            size32_t numchars16 = end - start;
+
+            out.ensureAvailable(outBytes + numchars16*2 + sizeof(size32_t));
+            outData = out.getbytes() + outBytes;
+            * (size32_t *) outData = numchars16;
+            outData += sizeof(size32_t);
+
+            sample.extract(start,numchars16,(UChar *) outData);
+            outBytes += numchars16*2 + sizeof(size32_t);
+
+            matched = matcher->find();
+            if (matched)
+                matchedSize = (unsigned)matcher->groupCount() + 1;
+        }
+        __isAllResult = false;
+        __resultBytes = outBytes;
+        __result = out.detachdata();
     }
 
     UChar const * findvstr(unsigned outlen, UChar * out, unsigned n = 0)
