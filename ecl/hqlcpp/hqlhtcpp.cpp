@@ -17800,7 +17800,6 @@ void HqlCppTranslator::doBuildAssignRegexFindReplace(BuildCtx & ctx, const CHqlB
     doBuildNewRegexFindReplace(ctx, &target, expr, NULL);
 }
 
-// TODO: SHAMSER
 void HqlCppTranslator::doBuildExprRegexFindSet(BuildCtx & ctx, IHqlExpression * expr, CHqlBoundExpr & bound)
 {
     CHqlBoundExpr boundMatch;
