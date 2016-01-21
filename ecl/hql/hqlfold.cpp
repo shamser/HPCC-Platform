@@ -2169,22 +2169,22 @@ IHqlExpression * foldConstantOperator(IHqlExpression * expr, unsigned foldOption
                     UChar * pattern = (UChar *)malloc((plen+1)*2);
                     t0->getUCharStringValue(plen+1, pattern); //plen+1 so get null-terminated
                     ICompiledUStrRegExpr * compiled = rtlCreateCompiledUStrRegExpr(pattern, !expr->hasAttribute(noCaseAtom));
-
-                    if (t1)
+                    if (t1 && compiled)
                     {
                         unsigned slen = t1->queryType()->getStringLen();
                         UChar * search = (UChar *)malloc((slen)*2);
                         t1->getUCharStringValue(slen, search);
 
                         IUStrRegExprFindInstance * match = compiled->find(search, 0, slen);
-
                         while (match->found())
                         {
+                            Owned<ITypeInfo> type;
                             size32_t len;
                             UChar * data;
                             match->getMatchX(len, data, (unsigned)0);
 
-                            results.append(*createConstant(createUnicodeValue(len, data,t0->queryType())));
+                            type.setown(makeUnicodeType(len,t0->queryType()->queryLocale()));
+                            results.append(*createConstant(createUnicodeValue(len, data, LINK(type))));
 
                             rtlFree(data);
                             match->nextMatch();
@@ -2209,13 +2209,14 @@ IHqlExpression * foldConstantOperator(IHqlExpression * expr, unsigned foldOption
                         StringBuffer pattern, search;
                         t0->getStringValue(pattern);
                         t1->getStringValue(search);
-                        IStrRegExprFindInstance * match = compiled->find(search.str(), 0, search.length(), true);
 
+                        IStrRegExprFindInstance * match = compiled->find(search.str(), 0, search.length(), true);
                         while (match->found())
                         {
                             size32_t len;
-                            char * data;
+                            char * data = 0;
                             match->getMatchX(len, data, 0);
+
                             results.append(*createConstant(createStringValue(data, len)));
 
                             rtlFree(data);

@@ -4839,7 +4839,8 @@ private:
     bool            matched;
     const boost::regex * regEx;
     boost::cmatch   subs;
-    char *          sample; //only required if findstr/findvstr will be called
+    char *          sample;
+    char *          sample_end;
 
 public:
     CStrRegExprFindInstance(const boost::regex * _regEx, const char * _str, size32_t _from, size32_t _len, bool _keep)
@@ -4851,12 +4852,13 @@ public:
         {
             if (_keep)
             {
-                sample = (char *)rtlMalloc(_len + 1);  //required for findstr
+                sample = (char *)rtlMalloc(_len + 1);
                 memcpy(sample, _str + _from, _len);
-                sample[_len] = (char)NULL;
+                sample_end = sample+_len;
+                *sample_end = (char)NULL;
                 matched = boost::regex_search(sample, subs, *regEx);
             }
-            else 
+            else
             {
                 matched = boost::regex_search(_str + _from, _str + _len, subs, *regEx);
             }
@@ -4897,8 +4899,11 @@ public:
         if (!matched)
             return false;
 
-        matched = boost::regex_search(subs[0].second, subs, *regEx);
-        matched = matched && (subs[0].second > subs[0].first);
+        const char *start = subs[0].second==subs[0].first?subs[0].second+1: subs[0].second;
+        if (start >= sample_end)
+            return (matched = false);
+
+        matched = boost::regex_search(start, subs, *regEx);
 
         return matched;
     }
@@ -4909,21 +4914,25 @@ public:
         byte *outData;
         size32_t outBytes = 0;
 
-        while (matched)
+        boost::regex_iterator<char *> cur(sample, sample_end, *regEx);
+        boost::regex_iterator<char *> end;
+
+        for (; cur != end; ++cur)
         {
+            const boost::match_results<char *> &match = *cur;
+
+            if (match[0].first==sample_end) break;
             rtlDataAttr str;
-            size32_t lenBytes = subs[0].second - subs[0].first;
+            size32_t lenBytes = match[0].second - match[0].first;
 
             out.ensureAvailable(outBytes + lenBytes + sizeof(size32_t));
             outData = out.getbytes() + outBytes;
             * (size32_t *) outData = lenBytes;
 
-            rtlStrToStr(lenBytes, outData+sizeof(size32_t), lenBytes, subs[0].first);
+            rtlStrToStr(lenBytes, outData+sizeof(size32_t), lenBytes, match[0].first);
             outBytes += lenBytes + sizeof(size32_t);
-
-            matched = boost::regex_search(subs[0].second, subs, *regEx);
-            matched = matched && (subs[0].second > subs[0].first);
         }
+
         __isAllResult = false;
         __resultBytes = outBytes;
         __result = out.detachdata();
@@ -5058,6 +5067,7 @@ public:
             int32_t start = n ? matcher->start(n, uerr) : matcher->start(uerr);
             int32_t end = n ? matcher->end(n, uerr) : matcher->end(uerr);
             outlen = end - start;
+
             out = (UChar *)rtlMalloc(outlen*2);
             sample.extract(start, outlen, out);
         }
@@ -5072,7 +5082,10 @@ public:
     {
         if (!matched) return false;
 
-        matched = matcher->find();
+        UErrorCode uerr = U_ZERO_ERROR;
+
+        matched = matcher->find(uerr);
+        assertex(uerr<=U_ZERO_ERROR);
         if (matched)
             matchedSize = (unsigned)matcher->groupCount() + 1;
 
@@ -5082,29 +5095,32 @@ public:
     void getMatchSet(bool  & __isAllResult, size32_t & __resultBytes, void * & __result)
     {
         rtlRowBuilder out;
-        byte *outData;
         size32_t outBytes = 0;
 
+        int32_t posEnd = sample.length();
         while (matched)
         {
             rtlDataAttr str;
 
             UErrorCode uerr = U_ZERO_ERROR;
             int32_t start = matcher->start(uerr);
+            assertex(uerr<=U_ZERO_ERROR);
+
+            if (start==posEnd) break;
             int32_t end = matcher->end(uerr);
+            assertex(uerr<=U_ZERO_ERROR);
             size32_t numchars16 = end - start;
 
             out.ensureAvailable(outBytes + numchars16*2 + sizeof(size32_t));
-            outData = out.getbytes() + outBytes;
+            byte *outData = out.getbytes() + outBytes;
             * (size32_t *) outData = numchars16;
             outData += sizeof(size32_t);
 
             sample.extract(start,numchars16,(UChar *) outData);
             outBytes += numchars16*2 + sizeof(size32_t);
 
-            matched = matcher->find();
-            if (matched)
-                matchedSize = (unsigned)matcher->groupCount() + 1;
+            matched = matcher->find(uerr);
+            assertex(uerr<=U_ZERO_ERROR);
         }
         __isAllResult = false;
         __resultBytes = outBytes;
