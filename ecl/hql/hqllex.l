@@ -665,6 +665,7 @@ COS                 { RETURNSYM(COS); }
 COSH                { RETURNSYM(COSH); }
 COUNT               { RETURNSYM(COUNT); }
 COUNTER             { RETURNSYM(COUNTER); }
+CRITICAL            { RETURNSYM(CRITICAL); }
 CRON                { RETURNSYM(CRON); }
 CSV                 { RETURNSYM(CSV); }
 DATASET             { RETURNSYM(DATASET); }

@@ -364,7 +364,7 @@ enum _node_operator {
         no_existsdict,
         no_quantile,
         no_nocombine,
-    no_unused28,  
+        no_critical,
     no_unused29,
     no_unused30,
     no_unused31,

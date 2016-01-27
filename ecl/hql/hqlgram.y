@@ -152,6 +152,7 @@ static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int 
   COMBINE
   COMPRESSED
   __COMPRESSED__
+  CRITICAL
   TOK_CONST
   CORRELATION
   COS
@@ -1634,6 +1635,11 @@ failure
                             parser->normalizeExpression($3, type_string, true);
                             parser->normalizeExpression($5, type_string, true);
                             $$.setExpr(createValueF(no_persist, makeVoidType(), $3.getExpr(), $5.getExpr(), $6.getExpr(), NULL), $1);
+                        }
+    | CRITICAL '(' expression ')'
+                        {
+                            parser->normalizeExpression($3, type_string, true);
+                            $$.setExpr(createValueF(no_critical, makeVoidType(), $3.getExpr(), NULL), $1);
                         }
     | STORED '(' startStoredAttrs expression ',' fewMany optStoredFieldFormat ')'
                         {
