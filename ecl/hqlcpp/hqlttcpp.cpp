@@ -5082,6 +5082,13 @@ void GlobalAttributeInfo::extractStoredInfo(IHqlExpression * expr, IHqlExpressio
             storedName.setown(createConstant(s.str()));
         }
         break;
+    case no_critical:
+        setOp = no_ensureresult;// SHAMSER TODO: should this be no_ensureresult or no_setresult
+        storedName.set(expr->queryChild(0));
+        originalLabel.set(storedName);
+        sequence.setown(getLocalSequenceNumber());
+        extraSetAttr.setown(createAttribute(_workflow_Atom));
+        break;
     case no_global:
         throwUnexpected();
     case no_independent:
@@ -5751,6 +5758,7 @@ IHqlExpression * WorkflowTransformer::extractWorkflow(IHqlExpression * untransfo
                 // MORE - Add dynamic attribute to ensure the file is not pre-resolved
             }
             //fall through
+        case no_critical:
         case no_checkpoint:
         case no_stored:
             {
