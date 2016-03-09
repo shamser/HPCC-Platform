@@ -966,6 +966,8 @@ YesNoOption HqlThorBoundaryTransformer::calcNormalizeThor(IHqlExpression * expr)
             type = NULL;        // don't check the return type
             break;
         }
+    case no_evaluate_stmt:
+        return normalizeThor(expr->queryChild(0));
     case no_setworkflow_cond:
     case no_ensureresult:
         return OptionNo;

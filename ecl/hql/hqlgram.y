@@ -2684,6 +2684,10 @@ actionStmt
                             $$.setExpr(createValue(no_evaluate_stmt, makeVoidType(), $3.getExpr()));
                             $$.setPosition($1);
                         }
+    | EVALUATE '(' dataSet ')'
+                        {
+                            $$.setExpr(createValue(no_evaluate_stmt, makeVoidType(), $3.getExpr()), $1);
+                        }
     | EVALUATE '(' action ')'
                         {
                             $$.inherit($3);
