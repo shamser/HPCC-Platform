@@ -5083,7 +5083,7 @@ void GlobalAttributeInfo::extractStoredInfo(IHqlExpression * expr, IHqlExpressio
         }
         break;
     case no_critical:
-        setOp = no_ensureresult;// SHAMSER TODO: should this be no_ensureresult or no_setresult
+        setOp = no_setresult;
         storedName.set(expr->queryChild(0));
         originalLabel.set(storedName);
         sequence.setown(getLocalSequenceNumber());
@@ -5546,6 +5546,12 @@ void WorkflowTransformer::setWorkflowPersist(IWorkflowItem * wf, char const * pe
     wf->setPersistInfo(persistName, persistWfid, numPersistInstances);
 }
 
+void WorkflowTransformer::setWorkflowCritical(IWorkflowItem * wf, char const * criticalName)
+{
+
+    wf->setCriticalInfo(criticalName);
+}
+
 WorkflowItem * WorkflowTransformer::createWorkflowItem(IHqlExpression * expr, unsigned wfid, node_operator workflowOp)
 {
     WorkflowItem * item = new WorkflowItem(wfid, workflowOp);
@@ -5927,6 +5933,15 @@ IHqlExpression * WorkflowTransformer::extractWorkflow(IHqlExpression * untransfo
         if ((info.persistOp != no_persist) && expr->isAction())
             setValue.setown(transformSequentialEtc(setValue));
 
+        if(info.persistOp == no_critical)
+        {
+            StringBuffer criticalName;
+            info.storedName->queryValue()->getStringValue(criticalName);
+            unsigned criticalWfid = ++wfidCount;
+            Owned<IWorkflowItem> wf = addWorkflowToWorkunit(wfid, WFTypeNormal, WFModeCritical, queryDirectDependencies(setValue), conts, info.queryCluster());
+            setWorkflowCritical(wf, criticalName.str());
+        }
+        else
         if(info.persistOp == no_persist)
         {
             StringBuffer persistName;

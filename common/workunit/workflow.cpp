@@ -45,6 +45,7 @@ mapEnums wfmodes[] =
     { WFModeBeginWait, "bwait" },
     { WFModeWait, "wait" },
     { WFModeOnce, "once" },
+    { WFModeCritical, "critical" },
     { WFModeSize, NULL}
 };
 
@@ -161,6 +162,7 @@ public:
     virtual IStringVal & getPersistName(IStringVal & val) const { val.set(tree->queryProp("@persistName")); return val; }
     virtual unsigned     queryPersistWfid() const { return tree->getPropInt("@persistWfid", 0); }
     virtual int          queryPersistCopies() const { return tree->getPropInt("@persistCopies", 0); }
+    virtual IStringVal & getCriticalName(IStringVal & val) const { val.set(tree->queryProp("@criticalName")); return val; }
     virtual IStringVal & queryCluster(IStringVal & val) const { val.set(tree->queryProp("@cluster")); return val; }
     virtual void         setScheduledNow() { tree->setPropTree("Schedule", createPTree()); setEnum(tree, "@state", WFStateReqd, wfstates); }
     virtual void         setScheduledOn(char const * name, char const * text) { IPropertyTree * stree = createPTree(); stree->setProp("@name", name); stree->setProp("@text", text); tree->setPropTree("Schedule", createPTree())->setPropTree("Event", stree); setEnum(tree, "@state", WFStateWait, wfstates); }
@@ -174,6 +176,7 @@ public:
         if (numPersistInstances != 0)
             tree->setPropInt("@persistCopies", (int)numPersistInstances);
     }
+    virtual void         setCriticalInfo(char const * name) { tree->setProp("@criticalName", name);}
     virtual void         setCluster(const char * cluster) { tree->setProp("@cluster", cluster); }
     //info set at run time
     virtual unsigned     queryScheduleCountRemaining() const { assertex(tree->hasProp("Schedule")); return tree->getPropInt("Schedule/@countRemaining"); }
@@ -349,6 +352,7 @@ private:
     SCMStringBuffer clusterName;
     unsigned persistWfid;
     int persistCopies;
+    SCMStringBuffer criticalName;
     StringAttr eventName;
     StringAttr eventExtra;
 
@@ -383,6 +387,7 @@ public:
         persistWfid = other->queryPersistWfid();
         scheduledWfid = other->queryScheduledWfid();
         persistCopies = other->queryPersistCopies();
+        other->getCriticalName(criticalName);
         other->queryCluster(clusterName);
     }
     //info set at compile time
@@ -404,6 +409,7 @@ public:
     virtual IStringVal & getPersistName(IStringVal & val) const { val.set(persistName.str()); return val; }
     virtual unsigned     queryPersistWfid() const { return persistWfid; }
     virtual int          queryPersistCopies() const { return persistCopies; }
+    virtual IStringVal & getCriticalName(IStringVal & val) const { val.set(criticalName.str()); return val; }
     virtual IStringVal & queryCluster(IStringVal & val) const { val.set(clusterName.str()); return val; }
     //info set at run time
     virtual unsigned     queryScheduleCountRemaining() const { return schedule ? schedule->queryCountRemaining() : 0; }
@@ -715,6 +721,9 @@ bool WorkflowMachine::executeItem(unsigned wfid, unsigned scheduledWfid)
         break;
     case WFModePersist:
         doExecutePersistItem(item);
+        break;
+    case WFModeCritical:
+        doExecuteCriticalItem(item);
         break;
     case WFModeBeginWait:
         doExecuteBeginWaitItem(item, scheduledWfid);

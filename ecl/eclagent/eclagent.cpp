@@ -2196,6 +2196,21 @@ void EclAgentWorkflowMachine::releaseRunlock()
     runlock.clear();
 }
 
+IRemoteConnection *EclAgentWorkflowMachine::obtainCriticalLock(const char *name)
+{
+    StringBuffer xpath;
+    xpath.append("/WorkUnitCriticalLocks/").append(name);
+    LOG(MCrunlock, unknownJob, "Waiting for critical lock");
+    return querySDS().connect(xpath.str(), myProcessSession(), RTM_CREATE | RTM_LOCK_WRITE | RTM_DELETE_ON_DISCONNECT, INFINITE);
+}
+
+void EclAgentWorkflowMachine::releaseCriticalLock(IRemoteConnection *criticalLock)
+{
+    LOG(MCrunlock, unknownJob, "Releasing critical lock");
+    if(criticalLock && queryDaliServerVersion().compare("1.3") < 0)
+        criticalLock->close(true);
+}
+
 void EclAgentWorkflowMachine::syncWorkflow()
 {
 #ifdef TRACE_WORKFLOW
@@ -2306,6 +2321,30 @@ void EclAgentWorkflowMachine::doExecutePersistItem(IRuntimeWorkflowItem & item)
     agent.finishPersist(logicalName, persistLock.getClear());
 }
 
+void EclAgentWorkflowMachine::doExecuteCriticalItem(IRuntimeWorkflowItem & item)
+{
+    if (agent.isStandAloneExe)
+        throw MakeStringException(0, "CRITICAL not supported when running standalone");
+
+    SCMStringBuffer name;
+    const char *logicalName = item.getPersistName(name).str();
+
+    StringBuffer lfn;
+    agent.expandLogicalName(lfn, logicalName);
+    if (!lfn.length())
+        throw MakeStringException(0, "Invalid Critical name used : '%s'", logicalName);
+    const char * lname = lfn;
+
+    Owned<IRemoteConnection> rlock = obtainCriticalLock(lname);
+    if (!rlock.get())
+        throw MakeStringException(0, "Cannot obtain Critical section lock");
+
+    unsigned wfid = item.queryWfid();
+    doExecuteItemDependencies(item, wfid);
+    doExecuteItem(item, wfid);
+
+    releaseCriticalLock(rlock);
+}
 //----------------------------------------------------------------
 
 void EclAgent::doNotify(char const * name, char const * text)
