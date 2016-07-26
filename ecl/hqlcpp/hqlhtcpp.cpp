@@ -10339,6 +10339,16 @@ ABoundActivity * HqlCppTranslator::doBuildActivityOutputIndex(BuildCtx & ctx, IH
     buildInstanceSuffix(instance);
     buildConnectInputOutput(ctx, instance, boundDataset, 0, 0);
 
+    IHqlExpression * signedAttr = expr->queryAttribute(_fileAccessSigned_Atom);
+    if (signedAttr)
+    {
+        IValue *sig = signedAttr->queryChild(0)->queryValue();
+        StringBuffer buf;
+        sig->getStringValue(buf);
+        instance->addAttributeBool("isSigned", true);
+        instance->addAttribute("signedBy", buf.str());
+    }
+
     OwnedHqlExpr dependency = createAttribute(fileAtom, getNormalizedFilename(filename));
     Owned<ABoundActivity> bound = instance->getBoundActivity();
     OwnedHqlExpr boundUnknown = createUnknown(no_attr, NULL, NULL, LINK(bound));
@@ -10631,6 +10641,16 @@ ABoundActivity * HqlCppTranslator::doBuildActivityOutput(BuildCtx & ctx, IHqlExp
         assertex(tempCount.get() && !hasDynamic(expr));
         instance->addConstructorParameter(tempCount);
         addFilenameConstructorParameter(*instance, "getFileName", filename);
+    }
+
+    IHqlExpression * signedAttr = expr->queryAttribute(_fileAccessSigned_Atom);
+    if (signedAttr)
+    {
+        IValue *sig = signedAttr->queryChild(0)->queryValue();
+        StringBuffer buf;
+        sig->getStringValue(buf);
+        instance->addAttributeBool("isSigned", true);
+        instance->addAttribute("signedBy", buf.str());
     }
 
     instance->addAttributeBool("_isSpill", expr->hasAttribute(_spill_Atom));

@@ -2389,7 +2389,9 @@ actionStmt
                                 }
                                 parser->warnIfRecordPacked(select, $1);
                             }
-
+                            IHqlExpression * sig = parser->getGpgSignature();
+                            if (sig)
+                                options.append(*sig);
                             HqlExprArray args;
                             args.append(*select.getClear());
                             appendArray(args, options);
@@ -8757,10 +8759,10 @@ simpleDataSet
                                 HqlExprArray args;
                                 unwindChildren(args, transform);
                                 transform.setown(createValue(no_newtransform, transform->getType(), args));
-                                $$.setExpr(createDataset(no_newkeyindex, dataset, createComma(record.getClear(), transform.getClear(), extra.getClear())));
+                                $$.setExpr(createDataset(no_newkeyindex, dataset, createComma(record.getClear(), transform.getClear(), extra.getClear(), parser->getGpgSignature())));
                             }
                             else
-                                $$.setExpr(createDataset(no_keyindex, dataset, createComma(record.getClear(), extra.getClear())));
+                                $$.setExpr(createDataset(no_keyindex, dataset, createComma(record.getClear(), extra.getClear(), parser->getGpgSignature())));
                             parser->checkIndexRecordTypes($$.queryExpr(), $1);
                             $$.setPosition($1);
                         }
@@ -8824,7 +8826,7 @@ simpleDataSet
                                 filename.setown(createValue(no_assertconstant, filename->getType(), LINK(filename->queryChild(0))));
                                 options.setown(createComma(options.getClear(), createAttribute(localUploadAtom)));
                             }
-                            IHqlExpression * dataset = createNewDataset(filename.getClear(), $6.getExpr(), mode.getClear(), NULL, NULL, options.getClear());
+                            IHqlExpression * dataset = createNewDataset(filename.getClear(), $6.getExpr(), mode.getClear(), NULL, NULL, parser->getGpgSignature(), options.getClear());
                             parser->checkValidRecordMode(dataset, $4, $9);
                             $$.setExpr(dataset);
                             $$.setPosition($1);
@@ -8867,7 +8869,7 @@ simpleDataSet
                                 filename.setown(createValue(no_assertconstant, filename->getType(), LINK(filename->queryChild(0))));
                                 options.setown(createComma(options.getClear(), createAttribute(localUploadAtom)));
                             }
-                            IHqlExpression * dataset = createNewDataset(filename.getClear(), record.getClear(), mode.getClear(), NULL, NULL, options.getClear());
+                            IHqlExpression * dataset = createNewDataset(filename.getClear(), record.getClear(), mode.getClear(), NULL, NULL, parser->getGpgSignature(), options.getClear());
                             parser->checkValidRecordMode(dataset, $4, $9);
                             $$.setExpr(dataset, $1);
                         }
@@ -8881,7 +8883,7 @@ simpleDataSet
                             IHqlExpression * filename = $5.getExpr();
                             IHqlExpression * mode = $7.getExpr();
                             IHqlExpression * attrs = createComma(createAttribute(_origin_Atom, origin), $8.getExpr());
-                            IHqlExpression * dataset = createNewDataset(filename, LINK(origin->queryRecord()), mode, NULL, NULL, attrs);
+                            IHqlExpression * dataset = createNewDataset(filename, LINK(origin->queryRecord()), mode, NULL, NULL, parser->getGpgSignature(), attrs);
 
                             parser->checkValidRecordMode(dataset, $4, $7);
                             $$.setExpr(dataset);
@@ -8981,7 +8983,7 @@ simpleDataSet
                                 attrs.setown(createComma(attrs.getClear(), createAttribute(_disallowed_Atom)));
                             parser->normalizeExpression($3, type_string, false);
                             parser->checkValidPipeRecord($5, $5.queryExpr(), attrs, NULL);
-                            $$.setExpr(createNewDataset(createConstant(""), $5.getExpr(), createValue(no_pipe, makeNullType(), $3.getExpr()), NULL, NULL, LINK(attrs)));
+                            $$.setExpr(createNewDataset(createConstant(""), $5.getExpr(), createValue(no_pipe, makeNullType(), $3.getExpr()), NULL, NULL, NULL, LINK(attrs)));
                             $$.setPosition($1);
                         }
     | PIPE '(' startTopFilter ',' expression optPipeOptions endTopFilter ')'

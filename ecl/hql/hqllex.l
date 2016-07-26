@@ -1461,7 +1461,7 @@ FUNCTIONMACRO|MACRO {
                         Owned<IFileContents> macroContents;
                         if (!isFunctionMacro)
                         {
-                            macroContents.setown(createFileContentsFromText(len, lexer->yyBuffer+startpos, lexer->sourcePath, lexer->yyParser->inSignedModule));
+                            macroContents.setown(createFileContentsFromText(len, lexer->yyBuffer+startpos, lexer->sourcePath, lexer->yyParser->inSignedModule, lexer->yyParser->gpgSignature));
                         }
                         else
                         {
@@ -1475,7 +1475,7 @@ FUNCTIONMACRO|MACRO {
                             memcpy(macroBuf, prefix, lenPrefix);
                             memcpy(macroBuf + lenPrefix, lexer->yyBuffer+startpos, len);
                             memcpy(macroBuf + lenPrefix + len, suffix, lenSuffix);
-                            macroContents.setown(createFileContentsFromText(lenSuffix + len + lenPrefix, macroBuf, lexer->sourcePath,lexer->yyParser->inSignedModule));
+                            macroContents.setown(createFileContentsFromText(lenSuffix + len + lenPrefix, macroBuf, lexer->sourcePath,lexer->yyParser->inSignedModule, lexer->yyParser->gpgSignature));
                             free(macroBuf);
                         }
 
