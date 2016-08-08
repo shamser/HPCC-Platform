@@ -10339,15 +10339,7 @@ ABoundActivity * HqlCppTranslator::doBuildActivityOutputIndex(BuildCtx & ctx, IH
     buildInstanceSuffix(instance);
     buildConnectInputOutput(ctx, instance, boundDataset, 0, 0);
 
-    IHqlExpression * signedAttr = expr->queryAttribute(_fileAccessSigned_Atom);
-    if (signedAttr)
-    {
-        IValue *sig = signedAttr->queryChild(0)->queryValue();
-        StringBuffer buf;
-        sig->getStringValue(buf);
-        instance->addAttributeBool("isSigned", true);
-        instance->addAttribute("signedBy", buf.str());
-    }
+    addFileAccessSignedAttribute(instance, expr->queryAttribute(_fileAccessSigned_Atom));
 
     OwnedHqlExpr dependency = createAttribute(fileAtom, getNormalizedFilename(filename));
     Owned<ABoundActivity> bound = instance->getBoundActivity();
@@ -10643,15 +10635,7 @@ ABoundActivity * HqlCppTranslator::doBuildActivityOutput(BuildCtx & ctx, IHqlExp
         addFilenameConstructorParameter(*instance, "getFileName", filename);
     }
 
-    IHqlExpression * signedAttr = expr->queryAttribute(_fileAccessSigned_Atom);
-    if (signedAttr)
-    {
-        IValue *sig = signedAttr->queryChild(0)->queryValue();
-        StringBuffer buf;
-        sig->getStringValue(buf);
-        instance->addAttributeBool("isSigned", true);
-        instance->addAttribute("signedBy", buf.str());
-    }
+    addFileAccessSignedAttribute(instance, expr->queryAttribute(_fileAccessSigned_Atom));
 
     instance->addAttributeBool("_isSpill", expr->hasAttribute(_spill_Atom));
     if (targetRoxie())

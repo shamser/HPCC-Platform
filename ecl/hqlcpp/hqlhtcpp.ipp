@@ -299,4 +299,14 @@ IHqlExpression * extractFilterConditions(HqlExprAttr & invariant, IHqlExpression
 bool isLibraryScope(IHqlExpression * expr);
 extern IHqlExpression * constantMemberMarkerExpr;
 
+inline void addFileAccessSignedAttribute(ActivityInstance * instance, IHqlExpression * signedAttr)
+{
+    assertex(instance);
+    if (signedAttr)
+    {
+        StringBuffer buf;
+        getStringValue(buf, signedAttr->queryChild(0));
+        instance->addAttribute("signedBy", buf.str());
+    }
+}
 #endif

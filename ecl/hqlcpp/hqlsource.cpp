@@ -2010,17 +2010,8 @@ ABoundActivity * SourceBuilder::buildActivity(BuildCtx & ctx, IHqlExpression * e
     }
 
     if (tableExpr)
-    {
-        IHqlExpression * signedAttr = tableExpr->queryAttribute(_fileAccessSigned_Atom);
-        if (signedAttr)
-        {
-            IValue *sig = signedAttr->queryChild(0)->queryValue();
-            StringBuffer buf;
-            sig->getStringValue(buf);
-            instance->addAttributeBool("isSigned", true);
-            instance->addAttribute("signedBy", buf.str());
-        }
-    }
+        addFileAccessSignedAttribute(instance, tableExpr->queryAttribute(_fileAccessSigned_Atom));
+
     checkDependencies(ctx, expr);
     translator.buildInstanceSuffix(localInstance);
     if (input)
