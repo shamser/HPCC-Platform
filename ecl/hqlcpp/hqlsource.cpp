@@ -2010,7 +2010,7 @@ ABoundActivity * SourceBuilder::buildActivity(BuildCtx & ctx, IHqlExpression * e
     }
 
     if (tableExpr)
-        addFileAccessSignedAttribute(instance, tableExpr->queryAttribute(_fileAccessSigned_Atom));
+        instance->addFileAccessSignedAttribute(tableExpr->queryAttribute(_fileAccessSigned_Atom));
 
     checkDependencies(ctx, expr);
     translator.buildInstanceSuffix(localInstance);

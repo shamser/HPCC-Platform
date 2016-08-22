@@ -150,6 +150,7 @@ public:
     void addAttribute(const char * name, IHqlExpression * expr);
     void addAttributeInt(const char * name, __int64 value);
     void addAttributeBool(const char * name, bool value, bool alwaysAdd=false);
+    void addFileAccessSignedAttribute(IHqlExpression * signedAttr);
     void addLocationAttribute(IHqlExpression * location);
     void addNameAttribute(IHqlExpression * location);
     void removeAttribute(const char * name);
@@ -298,15 +299,4 @@ protected:
 IHqlExpression * extractFilterConditions(HqlExprAttr & invariant, IHqlExpression * expr, IHqlExpression * dataset, bool spotCSE, bool spotCseInIfDatasetConditions);
 bool isLibraryScope(IHqlExpression * expr);
 extern IHqlExpression * constantMemberMarkerExpr;
-
-inline void addFileAccessSignedAttribute(ActivityInstance * instance, IHqlExpression * signedAttr)
-{
-    assertex(instance);
-    if (signedAttr)
-    {
-        StringBuffer buf;
-        getStringValue(buf, signedAttr->queryChild(0));
-        instance->addAttribute("signedBy", buf.str());
-    }
-}
 #endif
