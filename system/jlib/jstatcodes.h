@@ -66,6 +66,7 @@ enum StatisticScopeType
     SSTdfuworkunit,                     // a reference to an executing dfu workunit
     SSTedge,
     SSTfunction,                        // a function call
+    SSTunknown,
     SSTmax
 };
 
@@ -83,6 +84,8 @@ enum StatisticMeasure
     SMeasurePercent,                    // actually stored as parts per million, displayed as a percentage
     SMeasureIPV4,
     SMeasureCycle,
+    SMeasureEnum,                       // A value from an enumeration
+    SMeasureText,                       // A textual value (from a graph attribute rather than a statistic)
     SMeasureMax,
 };
 
@@ -203,6 +206,21 @@ enum StatisticKind
     StStdDevX                           = 0xa0000,  // standard deviation in the value of X
     StNextModifier                      = 0xb0000,
 
+    //NOTE: Do not use 0x80000000 since wu attributes use those values, and they should not overlap
 };
+
+//Some inline helper functions to make it easy to create modified versions of the stats kinds
+inline StatisticKind minX(StatisticKind kind) { return (StatisticKind)(kind | StMinX); }
+inline StatisticKind maxX(StatisticKind kind) { return (StatisticKind)(kind | StMinX); }
+inline StatisticKind avgX(StatisticKind kind) { return (StatisticKind)(kind | StMinX); }
+inline StatisticKind skew(StatisticKind kind) { return (StatisticKind)(kind | StMinX); }
+inline StatisticKind skewMin(StatisticKind kind) { return (StatisticKind)(kind | StMinX); }
+inline StatisticKind skewMax(StatisticKind kind) { return (StatisticKind)(kind | StMinX); }
+inline StatisticKind nodeMin(StatisticKind kind) { return (StatisticKind)(kind | StMinX); }
+inline StatisticKind nodeMax(StatisticKind kind) { return (StatisticKind)(kind | StMinX); }
+inline StatisticKind deltaX(StatisticKind kind) { return (StatisticKind)(kind | StMinX); }
+inline StatisticKind stdDevX(StatisticKind kind) { return (StatisticKind)(kind | StMinX); }
+inline StatisticKind mkSt(StatisticKind kind, StatisticKind modifier) { return (StatisticKind)(kind | modifier); }
+
 
 #endif

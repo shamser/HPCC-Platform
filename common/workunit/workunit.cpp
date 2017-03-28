@@ -333,6 +333,34 @@ extern WORKUNIT_API IConstWUGraphProgress *createConstGraphProgress(const char *
 
 //--------------------------------------------------------------------------------------------------------------------
 
+static void createDefaultDescription(StringBuffer & description, StatisticKind kind, StatisticScopeType scopeType, const char * scope)
+{
+    switch (kind)
+    {
+    case StTimeElapsed:
+        {
+            if (scopeType != SSTsubgraph)
+                break;
+            //Create a default description for a root subgraph
+            const char * colon = strchr(scope, ':');
+            if (!colon)
+                break;
+
+            const char * subgraph = colon+1;
+            //Check for nested subgraph
+            if (strchr(subgraph, ':'))
+                break;
+
+            assertex(strncmp(subgraph, SubGraphScopePrefix, strlen(SubGraphScopePrefix)) == 0);
+            StringAttr graphname;
+            graphname.set(scope, colon - scope);
+            unsigned subId = atoi(subgraph + strlen(SubGraphScopePrefix));
+
+            formatGraphTimerLabel(description, graphname, 0, subId);
+        }
+    }
+}
+
 class ExtractedStatistic : public CInterfaceOf<IConstWUStatistic>
 {
 public:
@@ -340,33 +368,10 @@ public:
     {
         if (!description && createDefault)
         {
-            switch (kind)
-            {
-            case StTimeElapsed:
-                {
-                    if (scopeType != SSTsubgraph)
-                        break;
-                    //Create a default description for a root subgraph
-                    const char * colon = strchr(scope, ':');
-                    if (!colon)
-                        break;
-
-                    const char * subgraph = colon+1;
-                    //Check for nested subgraph
-                    if (strchr(subgraph, ':'))
-                        break;
-
-                    assertex(strncmp(subgraph, SubGraphScopePrefix, strlen(SubGraphScopePrefix)) == 0);
-                    StringAttr graphname;
-                    graphname.set(scope, colon - scope);
-                    unsigned subId = atoi(subgraph + strlen(SubGraphScopePrefix));
-
-                    StringBuffer desc;
-                    formatGraphTimerLabel(desc, graphname, 0, subId);
-                    str.set(desc);
-                    return str;
-                }
-            }
+            StringBuffer desc;
+            createDefaultDescription(desc, kind, scopeType, scope);
+            str.set(desc);
+            return str;
         }
 
         str.set(description);
@@ -377,10 +382,9 @@ public:
         str.set(creator);
         return str;
     }
-    virtual IStringVal & getScope(IStringVal & str) const
+    virtual const char * queryScope() const
     {
-        str.set(scope);
-        return str;
+        return scope;
     }
     virtual IStringVal & getFormattedValue(IStringVal & str) const
     {
@@ -427,8 +431,8 @@ public:
     }
 
 public:
-    StringAttr creator;
-    StringAttr description;
+    StringBuffer creator;
+    StringBuffer description;
     StringBuffer scope;
     StatisticMeasure measure;
     StatisticKind kind;
@@ -439,6 +443,763 @@ public:
     unsigned __int64 max;
     unsigned __int64 timeStamp;
 };
+
+
+class CConstGraphProgressScopeIterator : public CInterfaceOf<IConstWUScopeIterator>
+{
+public:
+    CConstGraphProgressScopeIterator(const char * wuid, const IStatisticsFilter * _filter) : filter(_filter)
+    {
+        if (filter)
+            scopes.appendList(filter->queryScope(), ":");
+        const char * searchGraph = "*";
+        if (scopes.ordinality())
+            searchGraph = scopes.item(0);
+
+        rootPath.append("/GraphProgress/").append(wuid).append('/');
+        bool singleGraph = false;
+        if (!containsWildcard(searchGraph))
+        {
+            rootPath.append(searchGraph).append("/");
+            singleGraph = true;
+        }
+
+        //Don't lock the statistics while we iterate - any partial updates must not cause problems
+        if (daliClientActive())
+            conn.setown(querySDS().connect(rootPath.str(), myProcessSession(), RTM_NONE, SDS_LOCK_TIMEOUT));
+
+        if (conn && !singleGraph)
+            graphIter.setown(conn->queryRoot()->getElements("*"));
+
+        valid = false;
+    }
+
+    IMPLEMENT_IINTERFACE_USING(CInterfaceOf<IConstWUScopeIterator>)
+
+    virtual bool first()
+    {
+        valid = false;
+        if (!conn)
+            return false;
+
+        if (graphIter && !graphIter->first())
+            return false;
+
+        if (!firstSubGraph())
+        {
+            if (!nextGraph())
+                return false;
+        }
+
+        valid = true;
+        return true;
+    }
+
+    virtual bool next()
+    {
+        if (!nextChildScope())
+        {
+            if (!nextSubGraph())
+            {
+                if (!nextGraph())
+                {
+                    valid = false;
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    virtual bool isValid()
+    {
+        return valid;
+    }
+
+protected:
+    bool firstSubGraph()
+    {
+        IPropertyTree & graphNode = graphIter ? graphIter->query() : *conn->queryRoot();
+        const char * xpath = "sg*";
+        StringBuffer childXpath;
+        if (scopes.isItem(1))
+        {
+            const char * scope1 = scopes.item(1);
+            if (strnicmp(scope1, "sg", 2) == 0)
+            {
+                childXpath.append(scope1);
+                xpath = childXpath.str();
+            }
+        }
+
+        subgraphIter.setown(graphNode.getElements(xpath));
+        if (!subgraphIter)
+            subgraphIter.setown(graphNode.getElements("sg0"));
+
+        if (!subgraphIter->first())
+            return false;
+        if (firstStat())
+            return true;
+        return nextSubGraph();
+    }
+
+    bool nextSubGraph()
+    {
+        for (;;)
+        {
+            if (!subgraphIter->next())
+                return false;
+            if (firstStat())
+                return true;
+        }
+    }
+
+    bool nextGraph()
+    {
+        if (!graphIter)
+            return false;
+        for (;;)
+        {
+            if (!graphIter->next())
+                return false;
+            if (firstSubGraph())
+                return true;
+        }
+    }
+
+    bool firstStat()
+    {
+        IPropertyTree & curSubGraph = subgraphIter->query();
+        if (!checkSubGraph())
+            return false;
+
+        curSubGraph.getPropBin("Stats", compressed.clear());
+        //Don't crash on old format progress...
+        if (compressed.length() == 0)
+            return false;
+
+        decompressToBuffer(serialized.clear(), compressed);
+
+        Owned<IStatisticCollection> collection = createStatisticCollection(serialized);
+        statsIterator.timeStamp = collection->queryWhenCreated();
+        return beginCollection(*collection);
+    }
+
+    bool beginCollection(IStatisticCollection & collection)
+    {
+        collections.append(OLINK(collection));
+        if (checkScope())
+            return true;
+        return nextChildScope();
+    }
+
+    bool nextChildScope()
+    {
+        for (;;)
+        {
+            if (collections.ordinality() == 0)
+                return false;
+
+            IStatisticCollection * curCollection = &collections.tos();
+            if (childIterators.ordinality() < collections.ordinality())
+            {
+                if (!filter || filter->recurseChildScopes(curScopeType, curScopeName))
+                {
+                    //Start iterating the children for the current collection
+                    childIterators.append(curCollection->getScopes(NULL));
+                    if (!childIterators.tos().first())
+                    {
+                        finishCollection();
+                        continue;
+                    }
+                }
+                else
+                {
+                    //Don't walk the child scopes
+                    collections.pop();
+                    continue;
+                }
+            }
+            else if (!childIterators.tos().next())
+            {
+                finishCollection();
+                continue;
+            }
+
+            if (beginCollection(childIterators.tos().query()))
+                return true;
+        }
+    }
+
+    void finishCollection()
+    {
+        collections.pop();
+        childIterators.pop();
+    }
+
+    bool checkSubGraph()
+    {
+        if (!filter)
+            return true;
+        IPropertyTree & curSubGraph = subgraphIter->query();
+
+        StatisticCreatorType creatorType = queryCreatorType(curSubGraph.queryProp("@c"));
+        const char * creator = curSubGraph.queryProp("@creator");
+        if (!filter->matches(creatorType, creator, SSTall, NULL, SMeasureAll, StKindAll, AnyStatisticValue))
+            return false;
+
+        statsIterator.creatorType = creatorType;
+        statsIterator.creator.set(creator);
+        return true;
+    }
+
+    bool checkScope()
+    {
+        if (!filter)
+            return true;
+        IStatisticCollection * collection = &collections.tos();
+        curScopeType = collection->queryScopeType();
+        collection->getFullScope(curScopeName.clear());
+        return filter->matches(SCTall, NULL, curScopeType, curScopeName, SMeasureAll, StKindAll, AnyStatisticValue);
+    }
+
+    virtual void playStatistics(IWuScopeVisitor & visitor) override
+    {
+        statsIterator.reset(curScopeName, curScopeType, collections.tos());
+        ForEach(statsIterator)
+            statsIterator.play(visitor);
+    }
+
+    virtual bool getStat(StatisticKind kind, unsigned __int64 & value) const
+    {
+        return collections.tos().getStatistic(kind, value);
+    }
+
+    virtual const char * queryAttribute(WuAttr attr) const
+    {
+        return nullptr;
+    }
+
+    virtual const char * queryHint(const char * kind) const
+    {
+        return nullptr;
+    }
+
+    virtual const char * queryScope() const override
+    {
+        return curScopeName;
+    }
+    virtual StatisticScopeType getScopeType() const override
+    {
+        return curScopeType;
+    }
+
+    virtual IConstWUStatisticIterator & queryStatistics()
+    {
+        statsIterator.reset(curScopeName, curScopeType, collections.tos());
+        return statsIterator;
+    }
+
+private:
+    class ScopeStatisticsIterator : public CInterfaceOf<IConstWUStatisticIterator>, public IConstWUStatistic
+    {
+        friend class CConstGraphProgressScopeIterator; // cleaner if this was removed + setScope() functions added.
+    public:
+        void reset(const char * _scopeName, StatisticScopeType _scopeType, IStatisticCollection & _collection)
+        {
+            scope.set(_scopeName);
+            scopeType = _scopeType;
+            collection = &_collection;
+            numStats = collection->getNumStatistics();
+        }
+
+        IMPLEMENT_IINTERFACE_USING(CInterfaceOf<IConstWUStatisticIterator>)
+
+// interface IConstWUStatisticIterator
+        virtual IConstWUStatistic & query() override
+        {
+            return *this;
+        }
+        virtual bool first() override
+        {
+            curStatIndex = 0;
+            if (curStatIndex >= numStats)
+                return false;
+
+            collection->getStatistic(kind, value, curStatIndex);
+            //MORE: Allow filtering:
+/*
+ *             if (filter && !filter->matches(SCTall, NULL, SSTall, NULL, queryMeasure(kind), kind, value))
+                    continue;
+ */
+            return true;
+        }
+        virtual bool next() override
+        {
+            for (;;)
+            {
+                ++curStatIndex;
+                if (curStatIndex >= numStats)
+                    return false;
+                collection->getStatistic(kind, value, curStatIndex);
+                //MORE: Allow stats filtering
+                return true;
+            }
+        }
+        virtual bool isValid() override
+        {
+            return curStatIndex < numStats;
+        }
+
+//interface IConstWUStatistic
+        virtual IStringVal & getDescription(IStringVal & str, bool createDefault) const override
+        {
+            if (createDefault)
+            {
+                StringBuffer description;
+                createDefaultDescription(description, kind, scopeType, scope);
+                str.set(description);
+            }
+            return str;
+        }
+        virtual IStringVal & getCreator(IStringVal & str) const override
+        {
+            str.set(creator);
+            return str;
+        }
+        virtual const char * queryScope() const override
+        {
+            return scope;
+        }
+        virtual IStringVal & getFormattedValue(IStringVal & str) const override
+        {
+            StringBuffer formatted;
+            formatStatistic(formatted, value, kind);
+            str.set(formatted);
+            return str;
+        }
+        virtual StatisticMeasure getMeasure() const override
+        {
+            return queryMeasure(kind);
+        }
+        virtual StatisticKind getKind() const override
+        {
+            return kind;
+        }
+        virtual StatisticCreatorType getCreatorType() const override
+        {
+            return creatorType;
+        }
+        virtual StatisticScopeType getScopeType() const override
+        {
+            return scopeType;
+        }
+        virtual unsigned __int64 getValue() const override
+        {
+            return value;
+        }
+        virtual unsigned __int64 getCount() const override
+        {
+            return 1;
+        }
+        virtual unsigned __int64 getMax() const override
+        {
+            return 0;
+        }
+        virtual unsigned __int64 getTimestamp() const override
+        {
+            return timeStamp;
+        }
+
+        //MORE: I'm not sure this function should be in this interface
+        virtual bool matches(const IStatisticsFilter * filter) const override
+        {
+            return filter->matches(SCTall, NULL, SSTall, NULL, queryMeasure(kind), kind, value);
+        }
+
+        void play(IWuScopeVisitor & visitor)
+        {
+            visitor.noteStatistic(kind, value, *this);
+        }
+
+    protected:
+        IStatisticCollection * collection = nullptr;
+        StringBuffer creator;
+        StringBuffer scope;
+        StatisticKind kind;
+        StatisticCreatorType creatorType;
+        StatisticScopeType scopeType;
+        unsigned __int64 value;
+        unsigned __int64 timeStamp;
+        unsigned curStatIndex = 0;
+        unsigned numStats = 0;
+    } statsIterator;
+
+    Owned<IRemoteConnection> conn;
+    StringBuffer curScopeName;
+    StatisticScopeType curScopeType;
+    const IStatisticsFilter * filter;
+    StringArray scopes;
+    StringBuffer rootPath;
+    Owned<IPropertyTreeIterator> graphIter;
+    Owned<IPropertyTreeIterator> subgraphIter;
+    IArrayOf<IStatisticCollection> collections;
+    IArrayOf<IStatisticCollectionIterator> childIterators;
+    MemoryBuffer compressed;
+    MemoryBuffer serialized;
+    bool valid;
+};
+
+
+int compareStatisticScopes(IConstWUStatistic & left, IConstWUStatistic & right)
+{
+    return compareScopeName(left.queryScope(), right.queryScope());
+}
+
+int compareStatisticScopes(IInterface * const * left, IInterface * const * right)
+{
+    return compareStatisticScopes(*static_cast<IConstWUStatistic *>(*left), *static_cast<IConstWUStatistic *>(*right));
+}
+
+class WorkUnitStatisticsScopeIterator : public CInterfaceOf<IConstWUScopeIterator>
+{
+public:
+    WorkUnitStatisticsScopeIterator(const IArrayOf<IConstWUStatistic> & _statistics, const IStatisticsFilter * _filter) : statsIter(this)
+    {
+        ForEachItemIn(i, _statistics)
+        {
+            IConstWUStatistic & cur = _statistics.item(i);
+            if (cur.matches(_filter))
+                statistics.append(OLINK(cur));
+        }
+        statistics.sort(compareStatisticScopes);
+    }
+
+    virtual bool first() override
+    {
+        curIndex = 0;
+        return initScope();
+    }
+
+    virtual bool next() override
+    {
+        curIndex += numStatistics;
+        return initScope();
+    }
+
+    virtual bool isValid() override
+    {
+        return statistics.isItem(curIndex);
+    }
+
+    virtual const char * queryScope() const override
+    {
+        return statistics.item(curIndex).queryScope();
+    }
+
+    virtual StatisticScopeType getScopeType() const override
+    {
+        return statistics.item(curIndex).getScopeType();
+    }
+
+    virtual void playStatistics(IWuScopeVisitor & visitor) override
+    {
+        for (unsigned i=0; i < numStatistics; i++)
+        {
+            IConstWUStatistic & cur = statistics.item(curIndex + i);
+            visitor.noteStatistic(cur.getKind(), cur.getValue(), cur);
+        }
+    }
+
+    virtual bool getStat(StatisticKind kind, unsigned __int64 & value) const
+    {
+        for (unsigned i=0; i < numStatistics; i++)
+        {
+            IConstWUStatistic & cur = statistics.item(curIndex + i);
+            if (cur.getKind() == kind)
+            {
+                value = cur.getValue();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    virtual const char * queryAttribute(WuAttr attr) const
+    {
+        return nullptr;
+    }
+
+    virtual const char * queryHint(const char * kind) const
+    {
+        return nullptr;
+    }
+
+    virtual IConstWUStatisticIterator & queryStatistics() override
+    {
+        return statsIter;
+    }
+
+    inline IConstWUStatistic & queryStatistic(unsigned i)
+    {
+        return statistics.item(curIndex + i);
+    }
+
+protected:
+    bool initScope()
+    {
+        unsigned next = curIndex+1;
+        while (next < statistics.ordinality())
+        {
+            if (compareStatisticScopes(statistics.item(curIndex), statistics.item(next)) != 0)
+                break;
+            next++;
+        }
+        numStatistics = (next - curIndex);
+        return statistics.isItem(curIndex);
+    }
+
+    class WorkUnitStatisticsIterator : public CInterfaceOf<IConstWUStatisticIterator>
+    {
+    public:
+        WorkUnitStatisticsIterator(WorkUnitStatisticsScopeIterator * _owner) : owner(_owner) {}
+
+        virtual IConstWUStatistic & query() override
+        {
+            return owner->queryStatistic(curStatistic);
+        }
+        virtual bool first() override
+        {
+            curStatistic = 0;
+            return true;
+        }
+        virtual bool next() override
+        {
+            curStatistic++;
+            return curStatistic < owner->numStatistics;
+        }
+        virtual bool isValid() override
+        {
+            return curStatistic < owner->numStatistics;
+        }
+
+    protected:
+        WorkUnitStatisticsScopeIterator * owner;
+        unsigned curStatistic = 0;
+    } statsIter;
+
+protected:
+    IArrayOf<IConstWUStatistic> statistics;
+    unsigned curIndex;
+    unsigned numStatistics = 1;
+};
+
+
+class CompoundStatisticsScopeIterator : public CInterfaceOf<IConstWUScopeIterator>
+{
+public:
+    CompoundStatisticsScopeIterator() : statsIter(this)
+    {
+    }
+    void addIter(IConstWUScopeIterator * iter)
+    {
+        if (iter)
+        {
+            iters.append(OLINK(*iter));
+            assertex(iters.ordinality() <= sizeof(activeIterMask)*8);
+        }
+    }
+
+    virtual bool first() override
+    {
+        activeIterMask = 0;
+        ForEachItemIn(i, iters)
+        {
+            if (iters.item(i).first())
+                activeIterMask |= (1U << i);
+        }
+
+        return findNextScope();
+    }
+
+    virtual bool next() override
+    {
+        ForEachItemIn(i, iters)
+        {
+            if (iterMatchesCurrentScope(i))
+            {
+                if (!iters.item(i).next())
+                    activeIterMask &= ~(1U << i);
+            }
+        }
+
+        return findNextScope();
+    }
+
+    virtual bool isValid() override
+    {
+        return (activeIterMask != 0);
+    }
+
+    virtual const char * queryScope() const override
+    {
+        return iters.item(firstMatchIter).queryScope();
+    }
+
+    virtual StatisticScopeType getScopeType() const override
+    {
+        return iters.item(firstMatchIter).getScopeType();
+    }
+
+    virtual void playStatistics(IWuScopeVisitor & visitor) override
+    {
+        ForEachItemIn(i, iters)
+        {
+            if (iterMatchesCurrentScope(i))
+                iters.item(i).playStatistics(visitor);
+        }
+    }
+
+    virtual bool getStat(StatisticKind kind, unsigned __int64 & value) const
+    {
+        ForEachItemIn(i, iters)
+        {
+            if (iterMatchesCurrentScope(i))
+                iters.item(i).getStat(kind, value);
+            return true;
+        }
+        return false;
+    }
+
+    virtual const char * queryAttribute(WuAttr attr) const
+    {
+        return nullptr;
+    }
+
+    virtual const char * queryHint(const char * kind) const
+    {
+        return nullptr;
+    }
+
+    virtual IConstWUStatisticIterator & queryStatistics() override
+    {
+        return statsIter;
+    }
+
+    inline bool iterMatchesCurrentScope(unsigned i) const { return ((1U << i) & matchIterMask) != 0; }
+    inline bool isAlive(unsigned i) const { return ((1U << i) & activeIterMask) != 0; }
+
+protected:
+    //Calculate which iterators contain the scope that should come next
+    bool findNextScope()
+    {
+        if (activeIterMask == 0)
+            return false;
+
+        unsigned mask = 0;
+        const char * scope = nullptr;
+        ForEachItemIn(i, iters)
+        {
+            if (isAlive(i))
+            {
+                if (mask)
+                {
+                    int compare = compareScopeName(scope, iters.item(i).queryScope());
+                    if (compare == 0)
+                    {
+                        mask |= (1U << i);
+                    }
+                    else if (compare > 0)
+                    {
+                        scope = iters.item(i).queryScope();
+                        mask = (1U << i);
+                        firstMatchIter = i;
+                    }
+                }
+                else
+                {
+                    scope = iters.item(i).queryScope();
+                    mask = (1U << i);
+                    firstMatchIter = i;
+                }
+            }
+        }
+        matchIterMask = mask;
+        return true;
+    }
+
+    bool firstStat()
+    {
+        curIter = firstMatchIter;
+        curStatistics = &iters.item(curIter).queryStatistics();
+        if (curStatistics->first())
+            return true;
+        return advanceSource();
+    }
+    bool nextStat()
+    {
+        if (curStatistics->next())
+            return true;
+        return advanceSource();
+    }
+    bool advanceSource()
+    {
+        for (;;)
+        {
+            do
+            {
+                if (!iters.isItem(++curIter))
+                    return false;
+            } while (!iterMatchesCurrentScope(curIter));
+
+            curStatistics = &iters.item(curIter).queryStatistics();
+            if (curStatistics->first())
+                return true;
+        }
+    }
+    bool isValidStat()
+    {
+        return iters.isItem(curIter);
+    }
+    IConstWUStatistic & queryStat()
+    {
+        return curStatistics->query();
+    }
+    class CompoundStatisticsIterator : public CInterfaceOf<IConstWUStatisticIterator>
+    {
+    public:
+        CompoundStatisticsIterator(CompoundStatisticsScopeIterator * _owner) : owner(_owner) {}
+
+        virtual IConstWUStatistic & query() override
+        {
+            return owner->queryStat();
+        }
+        virtual bool first() override
+        {
+            return owner->firstStat();
+        }
+        virtual bool next() override
+        {
+            return owner->nextStat();
+        }
+        virtual bool isValid() override
+        {
+            return owner->isValidStat();
+        }
+
+    protected:
+        CompoundStatisticsScopeIterator * owner;
+    } statsIter;
+
+protected:
+    IArrayOf<IConstWUScopeIterator> iters;
+    unsigned curIter = 0;
+    IConstWUStatisticIterator * curStatistics = nullptr;
+    unsigned firstMatchIter = 0;
+    unsigned matchIterMask = 0;
+    unsigned activeIterMask = 0;
+};
+
 
 class CConstGraphProgressStatisticsIterator : public CInterfaceOf<IConstWUStatisticIterator>
 {
@@ -1353,6 +2114,10 @@ public:
             { return c->getStatistics(filter); }
     virtual IConstWUStatistic * getStatistic(const char * creator, const char * scope, StatisticKind kind) const
             { return c->getStatistic(creator, scope, kind); }
+    virtual IConstWUScopeIterator & getScopeIterator(const IStatisticsFilter * filter) const override
+            { return c->getScopeIterator(filter); }
+    virtual void processScopes(const IStatisticsFilter * filter, IWuScopeVisitor & visitor) const override
+            { return c->processScopes(filter, visitor); }
     virtual IStringVal & getSnapshot(IStringVal & str) const
             { return c->getSnapshot(str); } 
     virtual const char *queryUser() const
@@ -5871,6 +6636,44 @@ IConstWUStatistic * CLocalWorkUnit::getStatistic(const char * creator, const cha
     return NULL;
 }
 
+IConstWUScopeIterator & CLocalWorkUnit::getScopeIterator(const IStatisticsFilter * filter) const
+{
+    {
+        CriticalBlock block(crit);
+        statistics.loadBranch(p,"Statistics");
+    }
+
+    Owned<CompoundStatisticsScopeIterator> compoundIter = new CompoundStatisticsScopeIterator;
+    //No support for 4.x legacy timings...
+
+    if (true)
+    {
+        Owned<IConstWUScopeIterator> localStats(new WorkUnitStatisticsScopeIterator(statistics, filter));
+        compoundIter->addIter(localStats);
+    }
+
+    if (filter->recurseChildScopes(SSTgraph, nullptr))
+    {
+        const char * wuid = p->queryName();
+        Owned<IConstWUScopeIterator> scopeIter(new CConstGraphProgressScopeIterator(wuid, filter));
+        compoundIter->addIter(scopeIter);
+    }
+
+    return *compoundIter.getClear();
+}
+
+void CLocalWorkUnit::processScopes(const IStatisticsFilter * filter, IWuScopeVisitor & visitor) const
+{
+    Owned<IConstWUScopeIterator> iter = &getScopeIterator(filter);
+
+    ForEach(*iter)
+    {
+        visitor.startScope(iter->queryScope(), iter->getScopeType());
+        iter->playStatistics(visitor);
+        visitor.stopScope();
+    }
+}
+
 IWUPlugin* CLocalWorkUnit::updatePluginByName(const char *qname)
 {
     CriticalBlock block(crit);
@@ -8761,14 +9564,6 @@ IStringVal & CLocalWUStatistic::getDescription(IStringVal & str, bool createDefa
     return str;
 }
 
-IStringVal & CLocalWUStatistic::getType(IStringVal & str) const
-{
-    StatisticKind kind = getKind();
-    if (kind != StKindNone)
-        str.set(queryStatisticName(kind));
-    return str;
-}
-
 IStringVal & CLocalWUStatistic::getFormattedValue(IStringVal & str) const
 {
     StringBuffer formatted;
@@ -8792,11 +9587,9 @@ StatisticKind CLocalWUStatistic::getKind() const
     return queryStatisticKind(p->queryProp("@kind"));
 }
 
-IStringVal & CLocalWUStatistic::getScope(IStringVal & str) const
+const char * CLocalWUStatistic::queryScope() const
 {
-    const char * scope = p->queryProp("@scope");
-    str.set(scope);
-    return str;
+    return p->queryProp("@scope");
 }
 
 StatisticMeasure CLocalWUStatistic::getMeasure() const
@@ -8853,12 +9646,6 @@ IStringVal & CLocalWULegacyTiming::getDescription(IStringVal & str, bool createD
     return str;
 }
 
-IStringVal & CLocalWULegacyTiming::getType(IStringVal & str) const
-{
-    str.set(queryStatisticName(StTimeElapsed));
-    return str;
-}
-
 IStringVal & CLocalWULegacyTiming::getFormattedValue(IStringVal & str) const
 {
     StringBuffer formatted;
@@ -8882,10 +9669,9 @@ StatisticKind CLocalWULegacyTiming::getKind() const
     return StTimeElapsed;
 }
 
-IStringVal & CLocalWULegacyTiming::getScope(IStringVal & str) const
+const char * CLocalWULegacyTiming::queryScope() const
 {
-    str.clear();
-    return str;
+    return "";
 }
 
 StatisticMeasure CLocalWULegacyTiming::getMeasure() const

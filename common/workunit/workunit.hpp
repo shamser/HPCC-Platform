@@ -35,6 +35,7 @@
 #include "jstats.h"
 #include "jutil.hpp"
 #include "jprop.hpp"
+#include "wuattr.hpp"
 
 #define GLOBAL_SCOPE "workunit"
 
@@ -951,26 +952,66 @@ interface IConstWUAppValueIterator : extends IScmIterator
  */
 
 
-interface IConstWUStatistic : extends IInterface
+interface IConstWUScope : extends IInterface
+{
+    virtual IStringVal & getScope(IStringVal & str) const = 0;          // what scope is the statistic gathered over? e.g., workunit, wfid:n, graphn, graphn:m
+    virtual StatisticScopeType getScopeType() const = 0;
+};
+
+interface IConstStatistic : extends IInterface
 {
     virtual IStringVal & getDescription(IStringVal & str, bool createDefault) const = 0;    // Description of the statistic suitable for displaying to the user
     virtual IStringVal & getCreator(IStringVal & str) const = 0;        // what component gathered the statistic e.g., myroxie/eclserver_12/mythor:100
-    virtual IStringVal & getScope(IStringVal & str) const = 0;          // what scope is the statistic gathered over? e.g., workunit, wfid:n, graphn, graphn:m
     virtual IStringVal & getFormattedValue(IStringVal & str) const = 0; // The formatted value for display
     virtual StatisticMeasure getMeasure() const = 0;
     virtual StatisticKind getKind() const = 0;
     virtual StatisticCreatorType getCreatorType() const = 0;
-    virtual StatisticScopeType getScopeType() const = 0;
     virtual unsigned __int64 getValue() const = 0;
     virtual unsigned __int64 getCount() const = 0;
     virtual unsigned __int64 getMax() const = 0;
+};
+
+interface IConstWUStatistic : extends IConstStatistic
+{
+    virtual const char * queryScope() const = 0;          // what scope is the statistic gathered over? e.g., workunit, wfid:n, graphn, graphn:m
+    virtual StatisticScopeType getScopeType() const = 0;
     virtual unsigned __int64 getTimestamp() const = 0;  // time the statistic was created
-    virtual bool matches(const IStatisticsFilter * filter) const = 0;
+    virtual bool matches(const IStatisticsFilter * filter) const = 0; // This is an implementation detail, and shouldn't really be exported.
 };
 
 interface IConstWUStatisticIterator : extends IScmIterator
 {
     virtual IConstWUStatistic & query() = 0;
+};
+
+interface IWuScopeVisitor
+{
+    virtual void startScope(const char * scope, StatisticScopeType type) = 0;
+    virtual void stopScope()= 0;
+    virtual void noteStatistic(StatisticKind kind, unsigned __int64 value, IConstWUStatistic & extra) = 0;
+    virtual void noteAttribute(WuAttr attr, const char * value) = 0;
+    virtual void noteHint(const char * kind, const char * value) = 0;
+};
+
+interface IConstWUScopeIterator : extends IScmIterator
+{
+    //These return values are invalid after a call to next() or another call to the same function
+    virtual const char * queryScope() const = 0;
+    virtual StatisticScopeType getScopeType() const = 0;
+    virtual void playStatistics(IWuScopeVisitor & visitor) = 0;
+    //This iterator is owned by the scope iterator, and only has the lifetime of the current element - it cannot be shared
+    virtual IConstWUStatisticIterator & queryStatistics() = 0;
+    //Return true if the stat is present, if found and update the value - queryStat is generally easier to use.
+    virtual bool getStat(StatisticKind kind, unsigned __int64 & value) const = 0;
+    virtual const char * queryAttribute(WuAttr attr) const = 0; // Multiple values can be processed via the playStatistics() function
+    virtual const char * queryHint(const char * kind) const = 0;
+
+    inline unsigned __int64 queryStat(StatisticKind kind, unsigned __int64 defaultValue = 0)
+    {
+        unsigned __int64 value = defaultValue;
+        getStat(kind, value);
+        return value;
+    }
 };
 
 //! IWorkUnit
@@ -1053,6 +1094,8 @@ interface IConstWorkUnit : extends IConstWorkUnitInfo
     virtual IConstWUWebServicesInfo * getWebServicesInfo() const = 0;
     virtual IConstWUStatisticIterator & getStatistics(const IStatisticsFilter * filter) const = 0; // filter must currently stay alive while the iterator does.
     virtual IConstWUStatistic * getStatistic(const char * creator, const char * scope, StatisticKind kind) const = 0;
+    virtual IConstWUScopeIterator & getScopeIterator(const IStatisticsFilter * filter) const = 0; // filter must currently stay alive while the iterator does.
+    virtual void processScopes(const IStatisticsFilter * filter, IWuScopeVisitor & visitor) const = 0;
     virtual IConstWUResult * getVariableByName(const char * name) const = 0;
     virtual IConstWUResultIterator & getVariables() const = 0;
     virtual bool isPausing() const = 0;
