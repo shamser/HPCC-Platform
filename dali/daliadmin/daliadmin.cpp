@@ -2674,7 +2674,7 @@ public:
 
     virtual void stopScope() override
     {
-        printf("</scope\n");
+        printf("</scope>\n");
     }
 
     virtual void noteStatistic(StatisticKind kind, unsigned __int64 value, IConstWUStatistic & cur) override

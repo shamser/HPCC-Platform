@@ -997,6 +997,23 @@ protected:
 
 class GraphScopeIterator : public CInterfaceOf<IConstWUScopeIterator>
 {
+private:
+    enum State {
+        SGraphBegin,
+        SGraphFirstChild,
+        SGraphEnd,
+        SGraphNext,
+        SSubGraphBegin,
+        SSubGraphFirstEdge,
+        SSubGraphFirstActivity,
+        SSubGraphFirstSubGraph,
+        SSubGraphEnd,
+        SSubGraphNext,
+        SEdgeBegin,
+        SEdgeNext,
+        SDone
+    } state = SDone;
+
 public:
     GraphScopeIterator(const IConstWorkUnit * wu, const IStatisticsFilter * _filter) : graphIter(&wu->getGraphs(GraphTypeAny))
     {
@@ -1004,19 +1021,15 @@ public:
 
     virtual bool first() override
     {
-        curGraph.clear();
         if (!graphIter->first())
             return false;
-        graphIter->query().getName(StringBufferAdaptor(graphName));
-        return true;
+        state = SGraphBegin;
+        return nextScope();
     }
 
     virtual bool next() override
     {
-        if (!graphIter->next())
-            return false;
-        graphIter->query().getName(StringBufferAdaptor(graphName));
-        return true;
+        return nextScope();
     }
 
     virtual bool isValid() override
@@ -1026,12 +1039,12 @@ public:
 
     virtual const char * queryScope() const override
     {
-        return graphName.str();
+        return curScopeName.str();
     }
 
     virtual StatisticScopeType getScopeType() const override
     {
-        return SSTgraph;
+        return scopeType;
     }
 
     virtual void playProperties(IWuScopeVisitor & visitor) override
@@ -1058,15 +1071,108 @@ public:
         return *(IConstWUStatisticIterator *)nullptr;//MORE!
     }
 
+private:
+    void pushIterator(IPropertyTreeIterator * iter, State state)
+    {
+        treeIters.append(*LINK(iter));
+        stateStack.append(state);
+    }
+
+    State popIterator()
+    {
+        treeIters.pop();
+        return (State)stateStack.popGet();
+    }
+
+    void pushScope(const char * id)
+    {
+        scopeLengths.append(curScopeName.length());
+        curScopeName.append(":").append(id);
+    }
+
+    void popScope()
+    {
+        curScopeName.setLength(scopeLengths.popGet());
+    }
+
     bool nextScope()
     {
-        if (!curGraph)
+        for(;;)
         {
-            curGraph.setown(graphIter->query().getXGMMLTree(false));
-            Owned<IPropertyTreeIterator> treeIter = curGraph->getElements("node");
-            if (!treeIter || !treeIter->first())
-                return false;
-            treeIters.append(*treeIter);
+            switch (state)
+            {
+            case SGraphBegin:
+                graphIter->query().getName(StringBufferAdaptor(curScopeName.clear()));
+                scopeType = SSTgraph;
+                state = SGraphFirstChild;
+                return true;
+            case SGraphFirstChild:
+            {
+                curGraph.setown(graphIter->query().getXGMMLTree(false));
+                StringBuffer temp;
+                toXML(curGraph, temp);
+                //printf("%s\n", temp.str());
+                Owned<IPropertyTreeIterator> treeIter = curGraph->getElements("node");
+                if (treeIter && treeIter->first())
+                {
+                    pushIterator(treeIter, SGraphNext);
+                    state = SSubGraphBegin;
+                }
+                else
+                    state = SGraphNext;
+                break;
+            }
+            case SGraphNext:
+                if (!graphIter->next())
+                    return false;
+                state = SGraphBegin;
+                break;
+            case SSubGraphBegin:
+                scopeId.set(SubGraphScopePrefix).append(treeIters.tos().query().getPropInt("@id"));
+                pushScope(scopeId);
+                state = SSubGraphFirstEdge;
+                scopeType = SSTsubgraph;
+                return true;
+            case SSubGraphFirstEdge:
+            {
+                Owned<IPropertyTreeIterator> treeIter = treeIters.tos().query().getElements("att/graph/edge");
+                if (treeIter && treeIter->first())
+                {
+                    pushIterator(treeIter, SSubGraphFirstActivity);
+                    state = SEdgeBegin;
+                }
+                else
+                    state = SSubGraphFirstActivity;
+                break;
+            }
+            case SSubGraphFirstActivity:
+                //MORE:
+                state = SSubGraphEnd;
+                break;
+            case SSubGraphEnd:
+                popScope();
+                state = SSubGraphNext;
+                break;
+            case SSubGraphNext:
+                if (treeIters.tos().next())
+                    state = SSubGraphBegin;
+                else
+                    state = popIterator();
+                break;
+            case SEdgeBegin:
+                scopeId.set(EdgeScopePrefix).append(treeIters.tos().query().getPropInt("@id"));
+                pushScope(scopeId);
+                state = SEdgeNext;
+                scopeType = SSTedge;
+                return true;
+            case SEdgeNext:
+                popScope();
+                if (treeIters.tos().next())
+                    state = SEdgeBegin;
+                else
+                    state = popIterator();
+                break;
+            }
         }
 
         //edge - next sibling
@@ -1077,12 +1183,14 @@ public:
         //Either next edge
     }
 protected:
-    enum { SNextEdge, SDone } state = SDone;
     Owned<IConstWUGraphIterator> graphIter;
     Owned<IPropertyTree> curGraph;
     IArrayOf<IPropertyTreeIterator> treeIters;
     UnsignedArray scopeLengths;
-    StringBuffer graphName;
+    UnsignedArray stateStack;
+    StringBuffer curScopeName;
+    StringBuffer scopeId;
+    StatisticScopeType scopeType = SSTnone;
 };
 
 
@@ -6734,7 +6842,7 @@ IConstWUScopeIterator & CLocalWorkUnit::getScopeIterator(const IStatisticsFilter
         statistics.loadBranch(p,"Statistics");
     }
 
-    return *new GraphScopeIterator(this, filter);
+    //return *new GraphScopeIterator(this, filter);
     Owned<CompoundStatisticsScopeIterator> compoundIter = new CompoundStatisticsScopeIterator;
     //No support for 4.x legacy timings...
 
