@@ -663,7 +663,7 @@ protected:
         return filter->matches(SCTall, NULL, curScopeType, curScopeName, SMeasureAll, StKindAll, AnyStatisticValue);
     }
 
-    virtual void playStatistics(IWuScopeVisitor & visitor) override
+    virtual void playProperties(IWuScopeVisitor & visitor) override
     {
         statsIterator.reset(curScopeName, curScopeType, collections.tos());
         ForEach(statsIterator)
@@ -902,7 +902,7 @@ public:
         return statistics.item(curIndex).getScopeType();
     }
 
-    virtual void playStatistics(IWuScopeVisitor & visitor) override
+    virtual void playProperties(IWuScopeVisitor & visitor) override
     {
         for (unsigned i=0; i < numStatistics; i++)
         {
@@ -995,6 +995,97 @@ protected:
 };
 
 
+class GraphScopeIterator : public CInterfaceOf<IConstWUScopeIterator>
+{
+public:
+    GraphScopeIterator(const IConstWorkUnit * wu, const IStatisticsFilter * _filter) : graphIter(&wu->getGraphs(GraphTypeAny))
+    {
+    }
+
+    virtual bool first() override
+    {
+        curGraph.clear();
+        if (!graphIter->first())
+            return false;
+        graphIter->query().getName(StringBufferAdaptor(graphName));
+        return true;
+    }
+
+    virtual bool next() override
+    {
+        if (!graphIter->next())
+            return false;
+        graphIter->query().getName(StringBufferAdaptor(graphName));
+        return true;
+    }
+
+    virtual bool isValid() override
+    {
+        return graphIter->isValid();
+    }
+
+    virtual const char * queryScope() const override
+    {
+        return graphName.str();
+    }
+
+    virtual StatisticScopeType getScopeType() const override
+    {
+        return SSTgraph;
+    }
+
+    virtual void playProperties(IWuScopeVisitor & visitor) override
+    {
+    }
+
+    virtual bool getStat(StatisticKind kind, unsigned __int64 & value) const
+    {
+        return false;
+    }
+
+    virtual const char * queryAttribute(WuAttr attr) const
+    {
+        return nullptr;
+    }
+
+    virtual const char * queryHint(const char * kind) const
+    {
+        return nullptr;
+    }
+
+    virtual IConstWUStatisticIterator & queryStatistics() override
+    {
+        return *(IConstWUStatisticIterator *)nullptr;//MORE!
+    }
+
+    bool nextScope()
+    {
+        if (!curGraph)
+        {
+            curGraph.setown(graphIter->query().getXGMMLTree(false));
+            Owned<IPropertyTreeIterator> treeIter = curGraph->getElements("node");
+            if (!treeIter || !treeIter->first())
+                return false;
+            treeIters.append(*treeIter);
+        }
+
+        //edge - next sibling
+        //activity - child subgraph; next sibling
+        //subgraph - child edges; child activities; other children? next sibling
+
+        //Check for a) edge b) activity c
+        //Either next edge
+    }
+protected:
+    enum { SNextEdge, SDone } state = SDone;
+    Owned<IConstWUGraphIterator> graphIter;
+    Owned<IPropertyTree> curGraph;
+    IArrayOf<IPropertyTreeIterator> treeIters;
+    UnsignedArray scopeLengths;
+    StringBuffer graphName;
+};
+
+
 class CompoundStatisticsScopeIterator : public CInterfaceOf<IConstWUScopeIterator>
 {
 public:
@@ -1051,12 +1142,12 @@ public:
         return iters.item(firstMatchIter).getScopeType();
     }
 
-    virtual void playStatistics(IWuScopeVisitor & visitor) override
+    virtual void playProperties(IWuScopeVisitor & visitor) override
     {
         ForEachItemIn(i, iters)
         {
             if (iterMatchesCurrentScope(i))
-                iters.item(i).playStatistics(visitor);
+                iters.item(i).playProperties(visitor);
         }
     }
 
@@ -6643,6 +6734,7 @@ IConstWUScopeIterator & CLocalWorkUnit::getScopeIterator(const IStatisticsFilter
         statistics.loadBranch(p,"Statistics");
     }
 
+    return *new GraphScopeIterator(this, filter);
     Owned<CompoundStatisticsScopeIterator> compoundIter = new CompoundStatisticsScopeIterator;
     //No support for 4.x legacy timings...
 
@@ -6669,7 +6761,7 @@ void CLocalWorkUnit::processScopes(const IStatisticsFilter * filter, IWuScopeVis
     ForEach(*iter)
     {
         visitor.startScope(iter->queryScope(), iter->getScopeType());
-        iter->playStatistics(visitor);
+        iter->playProperties(visitor);
         visitor.stopScope();
     }
 }

@@ -998,7 +998,7 @@ interface IConstWUScopeIterator : extends IScmIterator
     //These return values are invalid after a call to next() or another call to the same function
     virtual const char * queryScope() const = 0;
     virtual StatisticScopeType getScopeType() const = 0;
-    virtual void playStatistics(IWuScopeVisitor & visitor) = 0;
+    virtual void playProperties(IWuScopeVisitor & visitor) = 0;
     //This iterator is owned by the scope iterator, and only has the lifetime of the current element - it cannot be shared
     virtual IConstWUStatisticIterator & queryStatistics() = 0;
     //Return true if the stat is present, if found and update the value - queryStat is generally easier to use.
