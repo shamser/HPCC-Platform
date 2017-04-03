@@ -24,30 +24,37 @@ public:
     WuAttr kind;
     StatisticMeasure measure;
     const char * name;
-    const char * graphId;
+    const char * graphPath;
+    const char * childPath;
     const char * dft;
 };
 
 #define CHILDPATH(x) "att[@name='" x "']/@value"
-#define ATTR(kind, measure, path)           { WA ## kind, measure, #kind, path, nullptr }
-#define CHILD(kind, measure, path)    { WA ## kind, measure, #kind, CHILDPATH(path), nullptr }
-#define CHILD_D(kind, measure, path, dft)    { WA ## kind, measure, #kind, CHILDPATH(path), dft }
+#define ATTR(kind, measure, path)           { WA ## kind, measure, #kind, path, nullptr, nullptr }
+#define CHILD(kind, measure, path)    { WA ## kind, measure, #kind, CHILDPATH(path), path, nullptr }
+#define CHILD_D(kind, measure, path, dft)    { WA ## kind, measure, #kind, CHILDPATH(path), path, dft }
 
 
 const static WuAttrInfo attrInfo[] = {
-    { WANone, SMeasureNone, "none", nullptr, nullptr },
+    { WANone, SMeasureNone, "none", nullptr, nullptr, nullptr },
     CHILD(Kind, SMeasureEnum, "_kind"),
     ATTR(Source, SMeasureText, "@source"),
     ATTR(Target, SMeasureText, "@target"),
     CHILD_D(SourceIndex, SMeasureText, "_sourceIndex", "0"),
     CHILD_D(TargetIndex, SMeasureText, "_targetIndex", "0"),
-    { WAMax, SMeasureNone, nullptr, nullptr, nullptr }
+    ATTR(Label, SMeasureText, "@label"),
+    CHILD(IsDependency, SMeasureBool, "_dependsOn"),
+    CHILD(IsChildGraph, SMeasureBool, "_childGraph"),
+    CHILD(Definition, SMeasureText, "definition"),
+    CHILD(EclName, SMeasureText, "name"),
+    { WAMax, SMeasureNone, nullptr, nullptr, nullptr, nullptr }
 };
 
 
 MODULE_INIT(INIT_PRIORITY_STANDARD)
 {
-    static_assert(_elements_in(attrInfo) == (WAMax-WANone)+1, "Elements missing from attrInfo[]");
+    static_assert(_elements_in(attrInfo) >= (WAMax-WANone)+1, "Elements missing from attrInfo[]");
+    static_assert(_elements_in(attrInfo) <= (WAMax-WANone)+1, "Extra elements in attrInfo[]");
     for (unsigned i=0; i < _elements_in(attrInfo); i++)
     {
         assertex(attrInfo[i].kind == WANone + i);
@@ -79,11 +86,36 @@ extern WORKUNIT_API const char * queryAttributeValue(IPropertyTree & src, WuAttr
     if ((kind <= WANone) || (kind >= WAMax))
         return nullptr;
 
-
     const WuAttrInfo & info = attrInfo[kind-WANone];
-    const char * path = info.graphId;
+    const char * path = info.graphPath;
     const char * value = src.queryProp(path);
     if (!value && info.dft)
         value = info.dft;
     return value;
+}
+
+extern WORKUNIT_API WuAttr queryGraphAttrToWuAttr(const char * name)
+{
+    //MORE: Create a hash table to implement this mapping efficiently
+    for(unsigned i=1; i < WAMax-WANone; i++)
+    {
+        const WuAttrInfo & info = attrInfo[i];
+        const char * path = info.graphPath;
+        if (path[0] == '@' && strieq(name, path+1))
+            return (WuAttr)(i+WANone);
+    }
+    return WANone;
+}
+
+extern WORKUNIT_API WuAttr queryGraphChildAttToWuAttr(const char * name)
+{
+    //MORE: Create a hash table to implement this mapping efficiently
+    for(unsigned i=1; i < WAMax-WANone; i++)
+    {
+        const WuAttrInfo & info = attrInfo[i];
+        const char * childPath = info.childPath;
+        if (childPath && strieq(name, childPath))
+            return (WuAttr)(i+WANone);
+    }
+    return WANone;
 }

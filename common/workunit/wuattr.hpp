@@ -36,11 +36,18 @@ enum WuAttr
     WATarget,
     WASourceIndex,
     WATargetIndex,
+    WALabel,
+    WAIsDependency,
+    WAIsChildGraph,
+    WADefinition,
+    WAEclName,
     WAMax
 };
 
 extern WORKUNIT_API const char * queryWuAttributeName(WuAttr kind);
 extern WORKUNIT_API WuAttr queryWuAttribute(const char * kind);
 extern WORKUNIT_API const char * queryAttributeValue(IPropertyTree & src, WuAttr kind);
+extern WORKUNIT_API WuAttr queryGraphAttrToWuAttr(const char * name);
+extern WORKUNIT_API WuAttr queryGraphChildAttToWuAttr(const char * name);
 
 #endif

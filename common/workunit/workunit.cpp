@@ -480,7 +480,16 @@ static int compareEdgeNode(IInterface * const *ll, IInterface * const *rr)
     IPropertyTree *l = (IPropertyTree *) *ll;
     IPropertyTree *r = (IPropertyTree *) *rr;
     //MORE: Edge needs more work
-    return l->getPropInt("@id") - r->getPropInt("@id");
+    const char * leftId = l->queryProp("@id");
+    const char * rightId = r->queryProp("@id");
+    unsigned leftAc = atoi(leftId);
+    unsigned rightAc = atoi(rightId);
+    if (leftAc != rightAc)
+        return (int)(leftAc - rightAc);
+    const char * leftSep = strchr(leftId, '_');
+    const char * rightSep = strchr(rightId, '_');
+    assertex(leftSep && rightSep);
+    return atoi(leftSep+1) - atoi(rightSep+1);
 }
 
 class CConstGraphProgressScopeIterator : public CInterfaceOf<IConstWUScopeIterator>
@@ -1044,7 +1053,8 @@ class GraphScopeIterator : public CInterfaceOf<IConstWUScopeIterator>
 private:
     enum State {
         SGraphBegin,
-        SGraphFirstChild,
+        SGraphFirstEdge,
+        SGraphFirstSubGraph,
         SGraphEnd,
         SGraphNext,
         SSubGraphBegin,
@@ -1110,13 +1120,33 @@ public:
         case SSTsubgraph:
             break;
         case SSTactivity:
-            playAttribute(visitor, WAKind);
+        {
+            playAttribute(visitor, WALabel);
+            Owned<IPropertyTreeIterator> attrs = cur.getElements("att");
+            ForEach(*attrs)
+            {
+                IPropertyTree & cur = attrs->query();
+                WuAttr attr = queryGraphChildAttToWuAttr(cur.queryProp("@name"));
+                if (attr != WANone)
+                    visitor.noteAttribute(attr, cur.queryProp("@value"));
+            }
+            Owned<IPropertyTreeIterator> hints = cur.getElements("hint");
+            ForEach(*hints)
+            {
+                IPropertyTree & cur = hints->query();
+                visitor.noteHint(cur.queryProp("@name"), cur.queryProp("@value"));
+            }
             break;
+        }
         case SSTedge:
+            if (cur.getPropBool("attr[@name='_DependentOn']/@value"))
+                cur.queryName();
+            playAttribute(visitor, WALabel);
             playAttribute(visitor, WASource);
             playAttribute(visitor, WATarget);
             playAttribute(visitor, WASourceIndex);
             playAttribute(visitor, WATargetIndex);
+            playAttribute(visitor, WAIsDependency);
             break;
         }
     }
@@ -1179,18 +1209,32 @@ private:
             case SGraphBegin:
                 graphIter->query().getName(StringBufferAdaptor(curScopeName.clear()));
                 scopeType = SSTgraph;
-                state = SGraphFirstChild;
+                state = SGraphFirstEdge;
                 return true;
-            case SGraphFirstChild:
+            case SGraphFirstEdge:
             {
+                //Walk dependencies - should possibly have a different SST e.g., SSTdependency since they do not
+                //share many characteristics with edges - e.g. no flowing records => few/no stats.
                 curGraph.setown(graphIter->query().getXGMMLTree(false));
-                StringBuffer temp;
-                toXML(curGraph, temp);
-                //printf("%s\n", temp.str());
+                Owned<IPropertyTreeIterator> treeIter = curGraph->getElements("edge");
+                if (treeIter && treeIter->first())
+                {
+                    treeIter.setown(createSortedIterator(*treeIter, compareEdgeNode));
+                    treeIter->first();
+                    pushIterator(treeIter, SGraphFirstSubGraph);
+                    state = SEdgeBegin;
+                }
+                else
+                    state = SGraphFirstSubGraph;
+                break;
+            }
+            case SGraphFirstSubGraph:
+            {
                 Owned<IPropertyTreeIterator> treeIter = curGraph->getElements("node");
                 if (treeIter && treeIter->first())
                 {
                     treeIter.setown(createSortedIterator(*treeIter, compareSubGraphNode));
+                    treeIter->first();
                     pushIterator(treeIter, SGraphNext);
                     state = SSubGraphBegin;
                 }

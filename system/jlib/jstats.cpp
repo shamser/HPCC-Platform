@@ -404,6 +404,9 @@ void formatStatistic(StringBuffer & out, unsigned __int64 value, StatisticMeasur
     case SMeasureCycle:
         out.append(value);
         break;
+    case SMeasureBool:
+        out.append(boolToStr(value != 0));
+        break;
     default:
         out.append(value).append('?');
     }
@@ -451,6 +454,7 @@ const char * queryMeasurePrefix(StatisticMeasure measure)
     case SMeasureCycle:         return "Cycle";
     case SMeasureEnum:          return "";
     case SMeasureText:          return "";
+    case SMeasureBool:          return "Is";
     default:
         return "Unknown";
     }
@@ -501,6 +505,7 @@ StatsMergeAction queryMergeMode(StatisticMeasure measure)
     case SMeasureCycle:         return StatsMergeSum;
     case SMeasureEnum:          return StatsMergeKeepNonZero;
     case SMeasureText:          return StatsMergeKeepNonZero;
+    case SMeasureBool:          return StatsMergeKeepNonZero;
     default:
 #ifdef _DEBUG
         throwUnexpected();
