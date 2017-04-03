@@ -445,6 +445,22 @@ public:
 };
 
 
+static int compareGraphNode(IInterface * const *ll, IInterface * const *rr)
+{
+    IPropertyTree *l = (IPropertyTree *) *ll;
+    IPropertyTree *r = (IPropertyTree *) *rr;
+    const char * lname = l->queryName();
+    const char * rname = r->queryName();
+    return compareScopeName(lname, rname);
+}
+
+static int compareSubGraphStatsNode(IInterface * const *ll, IInterface * const *rr)
+{
+    IPropertyTree *l = (IPropertyTree *) *ll;
+    IPropertyTree *r = (IPropertyTree *) *rr;
+    return compareScopeName(l->queryName(), r->queryName());
+}
+
 static int compareSubGraphNode(IInterface * const *ll, IInterface * const *rr)
 {
     IPropertyTree *l = (IPropertyTree *) *ll;
@@ -491,7 +507,10 @@ public:
             conn.setown(querySDS().connect(rootPath.str(), myProcessSession(), RTM_NONE, SDS_LOCK_TIMEOUT));
 
         if (conn && !singleGraph)
+        {
             graphIter.setown(conn->queryRoot()->getElements("*"));
+            graphIter.setown(createSortedIterator(*graphIter, compareGraphNode));
+        }
 
         valid = false;
     }
@@ -556,7 +575,7 @@ protected:
 
         subgraphIter.setown(graphNode.getElements(xpath));
         if (subgraphIter)
-            subgraphIter.setown(createSortedIterator(*subgraphIter, compareSubGraphNode));
+            subgraphIter.setown(createSortedIterator(*subgraphIter, compareSubGraphStatsNode));
         else
             subgraphIter.setown(graphNode.getElements("sg0"));
 
@@ -606,7 +625,13 @@ protected:
 
         Owned<IStatisticCollection> collection = createStatisticCollection(serialized);
         statsIterator.timeStamp = collection->queryWhenCreated();
-        return beginCollection(*collection);
+        if (!beginCollection(*collection))
+            return false;
+        //The root element of a collection is a graph - but it is only there to nest the subgraphs in.
+        //Do not iterate it as a separate element.
+        if ((collection->queryScopeType() != SSTgraph) || (collection->getNumStatistics() != 0))
+            return true;
+        return next();
     }
 
     bool beginCollection(IStatisticCollection & collection)
@@ -6909,20 +6934,23 @@ IConstWUScopeIterator & CLocalWorkUnit::getScopeIterator(const IStatisticsFilter
     Owned<CompoundStatisticsScopeIterator> compoundIter = new CompoundStatisticsScopeIterator;
     //No support for 4.x legacy timings...
 
-    if (true)
+    const bool includeGlobalStats = true;
+    const bool includeGraphStats = true;
+    const bool includeStaticGraph = true;
+    if (includeGlobalStats)
     {
         Owned<IConstWUScopeIterator> localStats(new WorkUnitStatisticsScopeIterator(statistics, filter));
         compoundIter->addIter(localStats);
     }
 
-    if (filter->recurseChildScopes(SSTgraph, nullptr))
+    if (includeGraphStats && filter->recurseChildScopes(SSTgraph, nullptr))
     {
         const char * wuid = p->queryName();
         Owned<IConstWUScopeIterator> scopeIter(new CConstGraphProgressScopeIterator(wuid, filter));
         compoundIter->addIter(scopeIter);
     }
 
-    if (true)
+    if (includeStaticGraph)
     {
         Owned<IConstWUScopeIterator> graphIter(new GraphScopeIterator(this, filter));
         compoundIter->addIter(graphIter);

@@ -5341,6 +5341,20 @@ void toXML(const IPropertyTree *tree, IIOStream &out, unsigned indent, unsigned 
     _toXML(tree, out, indent, flags);
 }
 
+void printXML(const IPropertyTree *tree, unsigned indent, unsigned flags)
+{
+    StringBuffer xml;
+    toXML(tree, xml, indent, flags);
+    printf("%s", xml.str());
+}
+
+void dbglogXML(const IPropertyTree *tree, unsigned indent, unsigned flags)
+{
+    StringBuffer xml;
+    toXML(tree, xml, indent, flags);
+    DBGLOG("%s", xml.str());
+}
+
 void saveXML(const char *filename, const IPropertyTree *tree, unsigned indent, unsigned flags)
 {
     OwnedIFile ifile = createIFile(filename);
