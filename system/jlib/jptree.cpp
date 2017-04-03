@@ -99,6 +99,25 @@ static int comparePropTrees(IInterface * const *ll, IInterface * const *rr)
     return stricmp(l->queryName(), r->queryName());
 };
 
+class CPTArrayIterator : public ArrayIIteratorOf<IArrayOf<IPropertyTree>, IPropertyTree, IPropertyTreeIterator>
+{
+    IArrayOf<IPropertyTree> elems;
+public:
+    CPTArrayIterator(IPropertyTreeIterator &iter, TreeCompareFunc compare) : ArrayIIteratorOf<IArrayOf<IPropertyTree>, IPropertyTree, IPropertyTreeIterator>(elems)
+    {
+        ForEach(iter)
+            elems.append(iter.get());
+        elems.sort(compare);
+    }
+};
+IPropertyTreeIterator * createSortedIterator(IPropertyTreeIterator & iter)
+{
+    return new CPTArrayIterator(iter, comparePropTrees);
+}
+IPropertyTreeIterator * createSortedIterator(IPropertyTreeIterator & iter, TreeCompareFunc compare)
+{
+    return new CPTArrayIterator(iter, compare);
+}
 //////////////////
 
 unsigned ChildMap::getHashFromElement(const void *e) const
@@ -140,23 +159,10 @@ IPropertyTreeIterator *ChildMap::getIterator(bool sort)
         virtual bool isValid() override { return hiter->isValid(); }
         virtual IPropertyTree & query() override { return hiter->query(); }
     };
-    class CPTArrayIterator : public ArrayIIteratorOf<IArrayOf<IPropertyTree>, IPropertyTree, IPropertyTreeIterator>
-    {
-        IArrayOf<IPropertyTree> elems;
-    public:
-        CPTArrayIterator(IPropertyTreeIterator &iter) : ArrayIIteratorOf<IArrayOf<IPropertyTree>, IPropertyTree, IPropertyTreeIterator>(elems)
-        {
-            ForEach(iter)
-                elems.append(iter.get());
-            elems.sort(comparePropTrees);
-        }
-    };
-    IPropertyTreeIterator *baseIter = new CPTHashIterator(*this);
+    Owned<IPropertyTreeIterator> baseIter = new CPTHashIterator(*this);
     if (!sort)
-        return baseIter;
-    IPropertyTreeIterator *it = new CPTArrayIterator(*baseIter);
-    baseIter->Release();
-    return it;
+        return baseIter.getClear();
+    return createSortedIterator(*baseIter);
 }
 
 ///////////

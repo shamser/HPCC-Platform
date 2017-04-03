@@ -85,7 +85,7 @@ public:
     virtual unsigned getNumStatistics() const = 0;
     virtual bool getStatistic(StatisticKind kind, unsigned __int64 & value) const = 0;
     virtual void getStatistic(StatisticKind & kind, unsigned __int64 & value, unsigned idx) const = 0;
-    virtual IStatisticCollectionIterator & getScopes(const char * filter) = 0;
+    virtual IStatisticCollectionIterator & getScopes(const char * filter, bool sorted) = 0;
     virtual void getMinMaxScope(IStringVal & minValue, IStringVal & maxValue, StatisticScopeType searchScopeType) const = 0;
     virtual void getMinMaxActivity(unsigned & minValue, unsigned & maxValue) const = 0;
     virtual void serialize(MemoryBuffer & out) const = 0;

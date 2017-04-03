@@ -214,6 +214,9 @@ jlib_decl IPropertyTree *createPTreeFromHttpPath(const char *nameWithAttrs, IPro
 jlib_decl IPropertyTree *createPTreeFromHttpParameters(const char *nameWithAttrs, IProperties *parameters, bool skipLeadingDotParameters, bool nestedRoot, ipt_flags flags=ipt_none);
 jlib_decl bool checkParseUrlPathNodeValue(const char *s, StringBuffer &name, StringAttr &value);
 
+typedef int (*TreeCompareFunc)(IInterface * const *ll, IInterface * const *rr);
+jlib_decl IPropertyTreeIterator * createSortedIterator(IPropertyTreeIterator & iter, TreeCompareFunc compare);
+
 
 #define XML_SortTags 0x01
 #define XML_Embed    0x02

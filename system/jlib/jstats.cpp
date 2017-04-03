@@ -1295,6 +1295,20 @@ public:
 };
 typedef IArrayOf<CStatisticCollection> CollectionArray;
 
+static int compareCollection(IInterface * const * pl, IInterface * const *pr);
+
+class SortedCollectionIterator : public ArrayIIteratorOf<IArrayOf<IStatisticCollection>, IStatisticCollection, IStatisticCollectionIterator>
+{
+    IArrayOf<IStatisticCollection> elems;
+public:
+    SortedCollectionIterator(IStatisticCollectionIterator &iter) : ArrayIIteratorOf<IArrayOf<IStatisticCollection>, IStatisticCollection, IStatisticCollectionIterator>(elems)
+    {
+        ForEach(iter)
+            elems.append(iter.get());
+        elems.sort(compareCollection);
+    }
+};
+
 class CStatisticCollection : public CInterfaceOf<IStatisticCollection>
 {
     friend class CollectionHashTable;
@@ -1331,21 +1345,21 @@ public:
     StringBuffer &toXML(StringBuffer &out) const;
 
 //interface IStatisticCollection:
-    virtual StatisticScopeType queryScopeType() const
+    virtual StatisticScopeType queryScopeType() const override
     {
         return id.queryScopeType();
     }
-    virtual unsigned __int64 queryWhenCreated() const
+    virtual unsigned __int64 queryWhenCreated() const override
     {
         if (parent)
             return parent->queryWhenCreated();
         return 0;
     }
-    virtual StringBuffer & getScope(StringBuffer & str) const
+    virtual StringBuffer & getScope(StringBuffer & str) const override
     {
         return id.getScopeText(str);
     }
-    virtual StringBuffer & getFullScope(StringBuffer & str) const
+    virtual StringBuffer & getFullScope(StringBuffer & str) const override
     {
         if (parent)
         {
@@ -1355,7 +1369,7 @@ public:
         id.getScopeText(str);
         return str;
     }
-    virtual unsigned __int64 queryStatistic(StatisticKind kind) const
+    virtual unsigned __int64 queryStatistic(StatisticKind kind) const override
     {
         ForEachItemIn(i, stats)
         {
@@ -1378,23 +1392,26 @@ public:
         }
         return false;
     }
-    virtual unsigned getNumStatistics() const
+    virtual unsigned getNumStatistics() const override
     {
         return stats.ordinality();
     }
-    virtual void getStatistic(StatisticKind & kind, unsigned __int64 & value, unsigned idx) const
+    virtual void getStatistic(StatisticKind & kind, unsigned __int64 & value, unsigned idx) const override
     {
         const Statistic & cur = stats.item(idx);
         kind = cur.kind;
         value = cur.value;
     }
-    virtual IStatisticCollectionIterator & getScopes(const char * filter)
+    virtual IStatisticCollectionIterator & getScopes(const char * filter, bool sorted) override
     {
         assertex(!filter);
-        return * new SuperHashIIteratorOf<IStatisticCollection, IStatisticCollectionIterator, false>(children);
+        Owned<IStatisticCollectionIterator> hashIter = new SuperHashIIteratorOf<IStatisticCollection, IStatisticCollectionIterator, false>(children);
+        if (!sorted)
+            return *hashIter.getClear();
+        return * new SortedCollectionIterator(*hashIter);
     }
 
-    virtual void getMinMaxScope(IStringVal & minValue, IStringVal & maxValue, StatisticScopeType searchScopeType) const
+    virtual void getMinMaxScope(IStringVal & minValue, IStringVal & maxValue, StatisticScopeType searchScopeType) const override
     {
         if (id.queryScopeType() == searchScopeType)
         {
@@ -1413,7 +1430,7 @@ public:
             iter.query().getMinMaxScope(minValue, maxValue, searchScopeType);
     }
 
-    virtual void getMinMaxActivity(unsigned & minValue, unsigned & maxValue) const
+    virtual void getMinMaxActivity(unsigned & minValue, unsigned & maxValue) const override
     {
         unsigned activityId = id.queryActivity();
         if (activityId)
@@ -1492,6 +1509,8 @@ public:
             iter.query().serialize(out);
     }
 
+    inline const StatsScopeId & queryScopeId() const { return id; }
+
 private:
     StatsScopeId id;
     CStatisticCollection * parent;
@@ -1516,6 +1535,13 @@ StringBuffer &CStatisticCollection::toXML(StringBuffer &out) const
         iter.query().toXML(out);
     out.append("</Scope>\n");
     return out;
+}
+
+static int compareCollection(IInterface * const * pl, IInterface * const *pr)
+{
+    CStatisticCollection * l = static_cast<CStatisticCollection *>(static_cast<IStatisticCollection *>(*pl));
+    CStatisticCollection * r = static_cast<CStatisticCollection *>(static_cast<IStatisticCollection *>(*pr));
+    return l->queryScopeId().compare(r->queryScopeId());
 }
 
 //---------------------------------------------------------------------------------------------------------------------

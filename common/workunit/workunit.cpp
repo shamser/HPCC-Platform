@@ -261,7 +261,7 @@ protected:
         expandStats(target, *collection);
 
         StringBuffer scopeName;
-        Owned<IStatisticCollectionIterator> activityIter = &collection->getScopes(NULL);
+        Owned<IStatisticCollectionIterator> activityIter = &collection->getScopes(NULL, false);
         ForEach(*activityIter)
         {
             IStatisticCollection & cur = activityIter->query();
@@ -445,6 +445,28 @@ public:
 };
 
 
+static int compareSubGraphNode(IInterface * const *ll, IInterface * const *rr)
+{
+    IPropertyTree *l = (IPropertyTree *) *ll;
+    IPropertyTree *r = (IPropertyTree *) *rr;
+    return l->getPropInt("@id") - r->getPropInt("@id");
+}
+
+static int compareActivityNode(IInterface * const *ll, IInterface * const *rr)
+{
+    IPropertyTree *l = (IPropertyTree *) *ll;
+    IPropertyTree *r = (IPropertyTree *) *rr;
+    return l->getPropInt("@id") - r->getPropInt("@id");
+}
+
+static int compareEdgeNode(IInterface * const *ll, IInterface * const *rr)
+{
+    IPropertyTree *l = (IPropertyTree *) *ll;
+    IPropertyTree *r = (IPropertyTree *) *rr;
+    //MORE: Edge needs more work
+    return l->getPropInt("@id") - r->getPropInt("@id");
+}
+
 class CConstGraphProgressScopeIterator : public CInterfaceOf<IConstWUScopeIterator>
 {
 public:
@@ -533,7 +555,9 @@ protected:
         }
 
         subgraphIter.setown(graphNode.getElements(xpath));
-        if (!subgraphIter)
+        if (subgraphIter)
+            subgraphIter.setown(createSortedIterator(*subgraphIter, compareSubGraphNode));
+        else
             subgraphIter.setown(graphNode.getElements("sg0"));
 
         if (!subgraphIter->first())
@@ -606,7 +630,7 @@ protected:
                 if (!filter || filter->recurseChildScopes(curScopeType, curScopeName))
                 {
                     //Start iterating the children for the current collection
-                    childIterators.append(curCollection->getScopes(NULL));
+                    childIterators.append(curCollection->getScopes(NULL, true));
                     if (!childIterators.tos().first())
                     {
                         finishCollection();
@@ -1141,6 +1165,7 @@ private:
                 Owned<IPropertyTreeIterator> treeIter = curGraph->getElements("node");
                 if (treeIter && treeIter->first())
                 {
+                    treeIter.setown(createSortedIterator(*treeIter, compareSubGraphNode));
                     pushIterator(treeIter, SGraphNext);
                     state = SSubGraphBegin;
                 }
@@ -1164,6 +1189,7 @@ private:
                 Owned<IPropertyTreeIterator> treeIter = treeIters.tos().query().getElements("att/graph/edge");
                 if (treeIter && treeIter->first())
                 {
+                    treeIter.setown(createSortedIterator(*treeIter, compareEdgeNode));
                     pushIterator(treeIter, SSubGraphFirstActivity);
                     state = SEdgeBegin;
                 }
@@ -1176,6 +1202,7 @@ private:
                 Owned<IPropertyTreeIterator> treeIter = treeIters.tos().query().getElements("att/graph/node");
                 if (treeIter && treeIter->first())
                 {
+                    treeIter.setown(createSortedIterator(*treeIter, compareActivityNode));
                     pushIterator(treeIter, SSubGraphEnd);
                     state = SActivityBegin;
                 }
@@ -1224,6 +1251,7 @@ private:
                 Owned<IPropertyTreeIterator> treeIter = treeIters.tos().query().getElements("att/graph/node");
                 if (treeIter && treeIter->first())
                 {
+                    treeIter.setown(createSortedIterator(*treeIter, compareSubGraphNode));
                     pushIterator(treeIter, SActivityNext);
                     state = SSubGraphBegin;
                 }
@@ -1282,12 +1310,27 @@ public:
 
     virtual bool next() override
     {
+
         ForEachItemIn(i, iters)
         {
             if (iterMatchesCurrentScope(i))
             {
+#ifdef _DEBUG
+                StringBuffer prevScope;
+                prevScope.append(iters.item(i).queryScope());
+#endif
+
                 if (!iters.item(i).next())
                     activeIterMask &= ~(1U << i);
+#ifdef _DEBUG
+                if (activeIterMask & (1U << i))
+                {
+                    const char * curScope = iters.item(i).queryScope();
+                    int compare = compareScopeName(prevScope, curScope);
+                    if (compare >= 0)
+                        throw MakeStringException(0, "Out of order scopes %s,%s = %d", prevScope.str(), curScope, compare);
+                }
+#endif
             }
         }
 
@@ -1609,7 +1652,7 @@ protected:
                 if (!filter || filter->recurseChildScopes(curStat->scopeType, curStat->scope))
                 {
                     //Start iterating the children for the current collection
-                    childIterators.append(curCollection->getScopes(NULL));
+                    childIterators.append(curCollection->getScopes(NULL, false));
                     if (!childIterators.tos().first())
                     {
                         finishCollection();
@@ -6862,11 +6905,11 @@ IConstWUScopeIterator & CLocalWorkUnit::getScopeIterator(const IStatisticsFilter
         statistics.loadBranch(p,"Statistics");
     }
 
-    return *new GraphScopeIterator(this, filter);
+    //return *new GraphScopeIterator(this, filter);
     Owned<CompoundStatisticsScopeIterator> compoundIter = new CompoundStatisticsScopeIterator;
     //No support for 4.x legacy timings...
 
-    if (false)
+    if (true)
     {
         Owned<IConstWUScopeIterator> localStats(new WorkUnitStatisticsScopeIterator(statistics, filter));
         compoundIter->addIter(localStats);
@@ -6879,6 +6922,7 @@ IConstWUScopeIterator & CLocalWorkUnit::getScopeIterator(const IStatisticsFilter
         compoundIter->addIter(scopeIter);
     }
 
+    if (true)
     {
         Owned<IConstWUScopeIterator> graphIter(new GraphScopeIterator(this, filter));
         compoundIter->addIter(graphIter);
