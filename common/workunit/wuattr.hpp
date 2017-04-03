@@ -30,12 +30,17 @@
 //The wuattribute values start from a high value - so that they do not overlap with StXXX
 enum WuAttr
 {
-    WAnone = 0x80000000,
-    WAkind,
-    WAmax
+    WANone = 0x80000000,
+    WAKind,
+    WASource,
+    WATarget,
+    WASourceIndex,
+    WATargetIndex,
+    WAMax
 };
 
 extern WORKUNIT_API const char * queryWuAttributeName(WuAttr kind);
 extern WORKUNIT_API WuAttr queryWuAttribute(const char * kind);
+extern WORKUNIT_API const char * queryAttributeValue(IPropertyTree & src, WuAttr kind);
 
 #endif

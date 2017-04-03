@@ -16,6 +16,7 @@
 ############################################################################## */
 
 #include "wuattr.hpp"
+#include "jptree.hpp"
 
 struct WuAttrInfo
 {
@@ -24,21 +25,32 @@ public:
     StatisticMeasure measure;
     const char * name;
     const char * graphId;
+    const char * dft;
 };
 
+#define CHILDPATH(x) "att[@name='" x "']/@value"
+#define ATTR(kind, measure, path)           { WA ## kind, measure, #kind, path, nullptr }
+#define CHILD(kind, measure, path)    { WA ## kind, measure, #kind, CHILDPATH(path), nullptr }
+#define CHILD_D(kind, measure, path, dft)    { WA ## kind, measure, #kind, CHILDPATH(path), dft }
+
+
 const static WuAttrInfo attrInfo[] = {
-    { WAnone, SMeasureNone, "none", nullptr },
-    { WAkind, SMeasureEnum, "kind", "_kind" },
-    { WAmax, SMeasureNone, nullptr, nullptr }
+    { WANone, SMeasureNone, "none", nullptr, nullptr },
+    CHILD(Kind, SMeasureEnum, "_kind"),
+    ATTR(Source, SMeasureText, "@source"),
+    ATTR(Target, SMeasureText, "@target"),
+    CHILD_D(SourceIndex, SMeasureText, "_sourceIndex", "0"),
+    CHILD_D(TargetIndex, SMeasureText, "_targetIndex", "0"),
+    { WAMax, SMeasureNone, nullptr, nullptr, nullptr }
 };
 
 
 MODULE_INIT(INIT_PRIORITY_STANDARD)
 {
-    static_assert(_elements_in(attrInfo) == (WAmax-WAnone)+1, "Elements missing from attrInfo[]");
+    static_assert(_elements_in(attrInfo) == (WAMax-WANone)+1, "Elements missing from attrInfo[]");
     for (unsigned i=0; i < _elements_in(attrInfo); i++)
     {
-        assertex(attrInfo[i].kind == WAnone + i);
+        assertex(attrInfo[i].kind == WANone + i);
     }
     return true;
 }
@@ -46,18 +58,32 @@ MODULE_INIT(INIT_PRIORITY_STANDARD)
 
 const char * queryWuAttributeName(WuAttr kind)
 {
-    if ((kind >= WAnone) && (kind < WAmax))
-        return attrInfo[kind].name;
+    if ((kind >= WANone) && (kind < WAMax))
+        return attrInfo[kind-WANone].name;
     return nullptr;
 }
 
 WuAttr queryWuAttribute(const char * kind)
 {
     //MORE: This needs to use a hash table
-    for (unsigned i=WAnone; i < WAmax; i++)
+    for (unsigned i=WANone; i < WAMax; i++)
     {
-        if (strieq(kind, attrInfo[i-WAnone].name))
+        if (strieq(kind, attrInfo[i-WANone].name))
             return (WuAttr)i;
     }
-    return WAnone;
+    return WANone;
+}
+
+extern WORKUNIT_API const char * queryAttributeValue(IPropertyTree & src, WuAttr kind)
+{
+    if ((kind <= WANone) || (kind >= WAMax))
+        return nullptr;
+
+
+    const WuAttrInfo & info = attrInfo[kind-WANone];
+    const char * path = info.graphId;
+    const char * value = src.queryProp(path);
+    if (!value && info.dft)
+        value = info.dft;
+    return value;
 }
