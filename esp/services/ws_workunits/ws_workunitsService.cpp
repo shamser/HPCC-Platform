@@ -3970,8 +3970,6 @@ bool CWsWorkunitsEx::onWUDetails(IEspContext &context, IEspWUDetailsRequest &req
             throw MakeStringException(ECLWATCH_CANNOT_OPEN_WORKUNIT,"Cannot open workunit %s.",wuid.str());
         ensureWsWorkunitAccess(context, *cw, SecAccess_Read);
 
-//         CWUDetails wuDetails(cw.getClear(), wuid.str(), req);
-//         wuDetails.process(resp);
         CWUDetails wuDetails(cw.getLink(), wuid, req);
         StatisticsFilter filter("*", "*", "*", "*", NULL, "*");;
         cw->processScopes(&filter, wuDetails);
