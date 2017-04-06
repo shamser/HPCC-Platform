@@ -23,6 +23,25 @@
 #include "jstatcodes.h"
 
 
+void processWUDetails(IConstWorkUnit *workunit, const char *_wuid, IEspWUDetailsRequest &req, IEspWUDetailsResponse &resp)
+{
+     CWUDetails wuDetails(workunit, _wuid, req);
+
+     Owned<StatisticsFilter> filter(wuDetails.getStatisticsFilter());
+
+     Owned<IConstWUScopeIterator> iter = &workunit->getScopeIterator(filter);
+     ForEach(*iter)
+     {
+         wuDetails.startScope(iter->queryScope(), iter->getScopeType());
+
+         if (!wuDetails.statisticsMatchesFilter(iter) || !wuDetails.attributesMatchesFilter(iter))
+            continue;
+
+         iter->playProperties(wuDetails);
+         wuDetails.stopScope();
+     }
+}
+
 static int funcCompareString(char const * const *l, char const * const *r)
 {
     return strcmp(*l, *r);
@@ -79,7 +98,8 @@ static unsigned buildScopeTypeMaskFromStringArray(const StringArray & arrayScope
     return mask;
 }
 
-static const unsigned AttributeFilterMaskSize = StatisticKind::StMax;
+static const unsigned StatisticFilterMaskSize = StatisticKind::StMax;
+static const unsigned AttributeFilterMaskSize = WuAttr::WAMax-WANone;
 
 CWUDetails::CWUDetails(IConstWorkUnit *_workunit, const char *_wuid, IEspWUDetailsRequest &req)
 : workunit(_workunit), wuid(_wuid), scopeOptions(req.getScopeOptions()),
@@ -99,9 +119,11 @@ CWUDetails::CWUDetails(IConstWorkUnit *_workunit, const char *_wuid, IEspWUDetai
     // otherise => increment so that the previously return scopes are not returned
     minVersion = (reqMinVersion>0) ? reqMinVersion+1 : 0;
 
-    returnAttribList.set(createBitSet(AttributeFilterMaskSize,true));
-    attribFilterMask.set(createBitSet(AttributeFilterMaskSize,true));
-    attribFilterProcessed.set(createBitSet(AttributeFilterMaskSize,true));
+    returnStatisticListSpecified=false;
+    returnStatisticList.set(createBitSet(StatisticFilterMaskSize,true));
+
+    returnAttributeSpecified = false;
+    returnAttributeList.set(createBitSet(AttributeFilterMaskSize,true));
 
     buildAttribListToReturn(attribsToReturn);
     buildAttribFilter(scopeFilter.getAttributeFilters());
@@ -120,6 +142,11 @@ CWUDetails::CWUDetails(IConstWorkUnit *_workunit, const char *_wuid, IEspWUDetai
     filterByScope = scopes.ordinality()>0;
     filterById = ids.ordinality()>0;
     resetScope();
+}
+
+StatisticsFilter * CWUDetails::getStatisticsFilter()
+{
+    return new StatisticsFilter("*", "*", "*", "*", NULL, "*");
 }
 
 void CWUDetails::getResponse(IEspWUDetailsResponse &resp)
@@ -166,7 +193,7 @@ void CWUDetails::startScope(const char * scope, StatisticScopeType type)
 
 void CWUDetails::stopScope()
 {
-    if (!skipScope && hasScopeStarted && attribFilterProcessed->matches(*attribFilterMask))
+    if (!skipScope && hasScopeStarted)
     {
         Owned<IEspWUResponseScope> respScope = buildRespScope();
         respScopes.append(*respScope.getClear());
@@ -183,21 +210,9 @@ void CWUDetails::noteStatistic(StatisticKind kind, unsigned __int64 value, ICons
         return;
     if (timeStamp>maxTimestamp)
         maxTimestamp = timeStamp;
-    // Check filter condition
-    if (attribFilterMask->test(kind))
-    {
-        CAttributeFilter tmpForAttribSearch;
-        tmpForAttribSearch.setStatisticKind(kind);
-        aindex_t pos = arrayAttributeFilter.bSearch(&tmpForAttribSearch,funcCompareAttribFilter);
-        if (pos!=NotFound)
-        {
-            if (!arrayAttributeFilter.item(pos).matchesValue(value))
-                return setSkipScope(true);
-            attribFilterProcessed->set(kind,true);
-        }
-    }
+
     // Check attribute is in list of return attribute
-    if (returnAttribListSpecified && !returnAttribList->test(kind))
+    if (returnStatisticListSpecified && !returnStatisticList->test(kind))
         return;
 
     Owned<IEspWUResponseAttribute> attrib = createWUResponseAttribute("","");
@@ -226,6 +241,11 @@ void CWUDetails::noteStatistic(StatisticKind kind, unsigned __int64 value, ICons
 void CWUDetails::noteAttribute(WuAttr attr, const char * value)
 {
     if (skipScope) return;
+
+
+    if (returnAttributeSpecified && !returnAttributeList->test(attr))
+        return;
+
     Owned<IEspWUResponseAttribute> attrib = createWUResponseAttribute("","");
 
     attrib->setName(queryWuAttributeName(attr));
@@ -238,6 +258,9 @@ void CWUDetails::noteAttribute(WuAttr attr, const char * value)
 void CWUDetails::noteHint(const char * kind, const char * value)
 {
     if (skipScope) return;
+
+    if (returnAttributeSpecified || returnStatisticListSpecified)
+        return;
 
     StringBuffer hint("hint:");
     hint.append(kind);
@@ -256,14 +279,8 @@ void CWUDetails::buildAttribFilter(IArrayOf<IConstWUAttributeFilter> & reqAttrib
     ForEachItemIn(idx,reqAttribFilter)
     {
         IConstWUAttributeFilter & attr = reqAttribFilter.item(idx);
-        const char * sStatisticKind = attr.getName();
-        if ( *sStatisticKind==0 ) continue; // skip nulls
-
-        StatisticKind sk = queryStatisticKind(sStatisticKind);
-        if (sk == StKindNone || sk== StKindAll)
-            throw MakeStringException(ECLWATCH_INVALID_INPUT,
-                                      "Invalid Attribute Name ('%s') in Attribute Filter",
-                                      reqAttribFilter.item(idx).getName());
+        const char * attributeName = attr.getName();
+        if ( *attributeName==0 ) continue; // skip nulls
 
         const char * exactValue = attr.getExactValue();
         const char * minValue = attr.getMinValue();
@@ -275,31 +292,61 @@ void CWUDetails::buildAttribFilter(IArrayOf<IConstWUAttributeFilter> & reqAttrib
         if (hasExactValue && (hasMinValue||hasMaxValue))
             throw MakeStringException(ECLWATCH_INVALID_INPUT,
                                       "Invalid Attribute Filter ('%s') - ExactValue may not be used with MinValue or MaxValue",
-                                      reqAttribFilter.item(idx).getName());
+                                      attributeName);
 
-        attribFilterMask->set(sk,true);
-        Owned<CAttributeFilter> caf = new CAttributeFilter(sk, atoi64(exactValue), atoi64(minValue),
-                                                            atoi64(maxValue), hasExactValue, hasMinValue, hasMaxValue);
-        arrayAttributeFilter.append(*caf.getClear());
+        StatisticKind sk = queryStatisticKind(attributeName);
+        if (sk==StKindAll)
+            throw MakeStringException(ECLWATCH_INVALID_INPUT, "Invalid Attribute Name ('%s') in Attribute Filter", attributeName);
+        if (sk!=StKindNone)
+        {
+
+            Owned<StatisticFilter> caf = new StatisticFilter(sk, atoi64(exactValue), atoi64(minValue), atoi64(maxValue),
+                                                             hasExactValue, hasMinValue, hasMaxValue);
+            arrayStatisticFilter.append(*caf.getClear());
+        }
+        else
+        {
+            WuAttr wa = queryWuAttribute(attributeName);
+            if (wa!=WANone)
+            {
+                Owned<AttributeFilter> caf = new AttributeFilter(wa, exactValue, minValue, maxValue,
+                                                                 hasExactValue, hasMinValue, hasMaxValue);
+                arrayAttribFilter.append(*caf.getClear());
+            }
+            else
+                throw MakeStringException(ECLWATCH_INVALID_INPUT, "Invalid Attribute Name ('%s') in Attribute Filter",attributeName);
+        }
     }
-    arrayAttributeFilter.sort(funcCompareAttribFilter);
 }
 
 void CWUDetails::buildAttribListToReturn(IConstWUAttributeToReturn & attribsToReturn)
 {
     StringArray & attribsToReturnList = attribsToReturn.getAttributes();
-    returnAttribListSpecified=false;
+    returnStatisticListSpecified=false;
     ForEachItemIn(idx,attribsToReturnList)
     {
-        const char * attribName = attribsToReturnList[idx];
-        if (*attribName==0) continue;
+        const char * attributeName = attribsToReturnList[idx];
+        if (*attributeName==0) continue;
 
-        StatisticKind sk = queryStatisticKind(attribName);
-        if (sk==StKindNone || sk==StKindAll)
-            throw MakeStringException(ECLWATCH_INVALID_INPUT, "Invalid Attribute name in AttributeToReturn(%s)",attribName);
-
-        returnAttribList->set(sk, true);
-        returnAttribListSpecified=true;
+        StatisticKind sk = queryStatisticKind(attributeName);
+        if (sk==StKindAll)
+            throw MakeStringException(ECLWATCH_INVALID_INPUT, "Invalid Attribute name in AttributeToReturn(%s)",attributeName);
+        if (sk!=StKindNone)
+        {
+            returnStatisticList->set(sk, true);
+            returnStatisticListSpecified=true;
+        }
+        else
+        {
+            WuAttr wa = queryWuAttribute(attributeName);
+            if (wa!=WANone)
+            {
+                returnAttributeList->set(wa-WANone,true);
+                returnAttributeSpecified=true;
+            }
+            else
+                throw MakeStringException(ECLWATCH_INVALID_INPUT, "Invalid Attribute name in AttributeToReturn(%s)",attributeName);
+        }
     }
 }
 
@@ -310,7 +357,6 @@ void CWUDetails::setNewScope(const char *scope, StatisticScopeType type)
     currentScope.set(scope);
     currentScopeType = type;
     currentAttribs.clear();
-    attribFilterProcessed->reset();
 }
 
 void CWUDetails::resetScope()
@@ -319,7 +365,6 @@ void CWUDetails::resetScope()
     setSkipScope(false);
     currentScope.clear();
     currentAttribs.clear();
-    attribFilterProcessed->reset();
 }
 
 IEspWUResponseScope * CWUDetails::buildRespScope()
@@ -336,4 +381,35 @@ IEspWUResponseScope * CWUDetails::buildRespScope()
     wuscope->setAttributes(currentAttribs);
 
     return wuscope.getClear();
+}
+
+bool CWUDetails::statisticsMatchesFilter(IConstWUScopeIterator *iter)
+{
+    ForEachItemIn(idx, arrayStatisticFilter)
+    {
+        StatisticFilter & statisticFilter  = arrayStatisticFilter.item(idx);
+
+        StatisticKind sk = (StatisticKind)statisticFilter.getAttributeId();
+        unsigned __int64 value;
+        if (!iter->getStat(sk,value))
+            return false;
+        if (!statisticFilter.matchesValue(value))
+            return false;
+    }
+    return true;
+}
+
+bool CWUDetails::attributesMatchesFilter(IConstWUScopeIterator *iter)
+{
+    ForEachItemIn(idx, arrayAttribFilter)
+    {
+        AttributeFilter & attribFilter  = arrayAttribFilter.item(idx);
+
+        WuAttr wuAttr = (WuAttr)attribFilter.getAttributeId();
+        const char * value = iter->queryAttribute(wuAttr);
+
+        if (!value || !attribFilter.matchesValue(value))
+            return false;
+    }
+    return true;
 }
