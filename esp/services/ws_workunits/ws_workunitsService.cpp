@@ -3970,19 +3970,8 @@ bool CWsWorkunitsEx::onWUDetails(IEspContext &context, IEspWUDetailsRequest &req
             throw MakeStringException(ECLWATCH_CANNOT_OPEN_WORKUNIT,"Cannot open workunit %s.",wuid.str());
         ensureWsWorkunitAccess(context, *cw, SecAccess_Read);
 
-//         CWUDetails wuDetails(cw.getLink(), wuid, req);
-//         StatisticsFilter filter("*", "*", "*", "*", NULL, "*");;
-//         cw->processScopes(&filter, wuDetails);
-//         wuDetails.getResponse(resp);
-
-//     Owned<IConstWUScopeIterator> iter = &getScopeIterator(filter);
-//     ForEach(*iter)
-//     {
-//         visitor.startScope(iter->queryScope(), iter->getScopeType());
-//         iter->playProperties(visitor);
-//         visitor.stopScope();
-//     }
-        processWUDetails(cw.getLink(), wuid, req, resp);
+        WUDetails wuDetails(cw.getLink(), wuid, req);
+        wuDetails.processRequest(resp);
     }
     catch(IException* e)
     {

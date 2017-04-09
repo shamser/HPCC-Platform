@@ -22,24 +22,159 @@
 #include "jset.hpp"
 #include "jstatcodes.h"
 
-
-void processWUDetails(IConstWorkUnit *workunit, const char *_wuid, IEspWUDetailsRequest &req, IEspWUDetailsResponse &resp)
+static const unsigned StatisticFilterMaskSize = StatisticKind::StMax;
+static const unsigned AttributeFilterMaskSize = WuAttr::WAMax-WANone;
+class WUDetailsVisitor : public IWuScopeVisitor
 {
-     CWUDetails wuDetails(workunit, _wuid, req);
+public:
+    WUDetailsVisitor(IConstWUAttributeOptions & _attribOptions, IConstWUAttributeToReturn & _attribsToReturn);
+    virtual void startScope(const char * scope, StatisticScopeType type) override {};
+    virtual void stopScope() override {};
+    virtual void noteStatistic(StatisticKind kind, unsigned __int64 value, IConstWUStatistic & extra) override;
+    virtual void noteAttribute(WuAttr attr, const char * value) override;
+    virtual void noteHint(const char * kind, const char * value) override;
 
-     Owned<StatisticsFilter> filter(wuDetails.getStatisticsFilter());
+    void resetScope();
+    IArrayOf<IEspWUResponseAttribute> & getCurrentAttribs() { return currentAttribs;}
+    unsigned __int64 getMaxTimestamp() const { return maxTimestamp;}
 
-     Owned<IConstWUScopeIterator> iter = &workunit->getScopeIterator(filter);
-     ForEach(*iter)
-     {
-         wuDetails.startScope(iter->queryScope(), iter->getScopeType());
+private:
+    IConstWUAttributeOptions & attribOptions;
+    IConstWUAttributeToReturn & attribsToReturn;
+    unsigned __int64 minVersion;
 
-         if (!wuDetails.statisticsMatchesFilter(iter) || !wuDetails.attributesMatchesFilter(iter))
-            continue;
+    bool returnStatisticListSpecified;
+    Owned<IBitSet> returnStatisticList;
+    bool returnAttributeSpecified;
+    Owned<IBitSet> returnAttributeList;
+    bool onlyDynamic;
+    unsigned __int64 maxTimestamp;
+    IArrayOf<IEspWUResponseAttribute> currentAttribs;
 
-         iter->playProperties(wuDetails);
-         wuDetails.stopScope();
-     }
+    void buildAttribListToReturn(IConstWUAttributeToReturn & attribsToReturn);
+};
+
+WUDetailsVisitor::WUDetailsVisitor(IConstWUAttributeOptions & _attribOptions, IConstWUAttributeToReturn & _attribsToReturn)
+:  attribOptions(_attribOptions), attribsToReturn(_attribsToReturn), onlyDynamic(_attribsToReturn.getOnlyDynamic()), maxTimestamp(0)
+{
+    __int64 reqMinVersion = atoi64(attribsToReturn.getMinVersion());
+    // minVersion==0 => keep minVersion unchanged so that scopes returned regardless of version number
+    // otherise => increment so that the previously return scopes are not returned
+    minVersion = (reqMinVersion>0) ? reqMinVersion+1 : 0;
+
+    if (*attribsToReturn.getMeasure())
+        onlyDynamic=true;
+
+    buildAttribListToReturn(attribsToReturn);
+}
+
+void WUDetailsVisitor::noteStatistic(StatisticKind kind, unsigned __int64 value, IConstWUStatistic & extra)
+{
+    unsigned __int64 timeStamp = extra.getTimestamp();
+    if (timeStamp<minVersion)
+        return;
+    if (timeStamp>maxTimestamp)
+        maxTimestamp = timeStamp;
+
+    // Check attribute is in list of return attribute
+    if (returnStatisticListSpecified && !returnStatisticList->test(kind))
+        return;
+
+    Owned<IEspWUResponseAttribute> attrib = createWUResponseAttribute("","");
+ 
+    if (kind != StKindNone)
+        attrib->setName(queryStatisticName(kind));
+    if (attribOptions.getIncludeRawValue())
+    {
+        StringBuffer rawValue;
+        rawValue.append(value);
+        attrib->setRawValue(rawValue);
+    }
+    SCMStringBuffer tmpStr;
+    if (attribOptions.getIncludeFormatted())
+        attrib->setFormatted(extra.getFormattedValue(tmpStr).str());
+    if (attribOptions.getIncludeMeasure() && extra.getMeasure()!= SMeasureNone)
+        attrib->setMeasure(queryMeasureName(extra.getMeasure()));
+    if (attribOptions.getIncludeCreator())
+        attrib->setCreator(extra.getCreator(tmpStr).str());
+    if (attribOptions.getIncludeCreatorType() && extra.getCreatorType() != SCTnone)
+        attrib->setCreatorType(queryCreatorTypeName(extra.getCreatorType()));
+
+    currentAttribs.append(*attrib.getClear());
+}
+
+void WUDetailsVisitor::noteAttribute(WuAttr attr, const char * value)
+{
+    if (onlyDynamic) return;
+
+    if (returnAttributeSpecified && !returnAttributeList->test(attr-WANone))
+        return;
+
+    Owned<IEspWUResponseAttribute> attrib = createWUResponseAttribute("","");
+
+    attrib->setName(queryWuAttributeName(attr));
+    if (attribOptions.getIncludeFormatted())
+        attrib->setFormatted(value);
+
+    currentAttribs.append(*attrib.getClear());
+}
+
+void WUDetailsVisitor::noteHint(const char * kind, const char * value)
+{
+    if (onlyDynamic) return;
+
+    if (returnAttributeSpecified || returnStatisticListSpecified)
+        return;
+
+    StringBuffer hint("hint:");
+    hint.append(kind);
+
+    Owned<IEspWUResponseAttribute> attrib = createWUResponseAttribute("","");
+
+    attrib->setName(hint);
+    if (attribOptions.getIncludeFormatted())
+        attrib->setFormatted(value);
+
+    currentAttribs.append(*attrib.getClear());
+}
+
+void WUDetailsVisitor::buildAttribListToReturn(IConstWUAttributeToReturn & attribsToReturn)
+{
+    returnStatisticListSpecified=false;
+    returnStatisticList.set(createBitSet(StatisticFilterMaskSize,true));
+    returnAttributeSpecified = false;
+    returnAttributeList.set(createBitSet(AttributeFilterMaskSize,true));
+    StringArray & attribsToReturnList = attribsToReturn.getAttributes();
+    ForEachItemIn(idx,attribsToReturnList)
+    {
+        const char * attributeName = attribsToReturnList[idx];
+        if (*attributeName==0) continue;
+
+        StatisticKind sk = queryStatisticKind(attributeName);
+        if (sk==StKindAll)
+            throw MakeStringException(ECLWATCH_INVALID_INPUT, "Invalid Attribute name in AttributeToReturn(%s)", attributeName);
+        if (sk!=StKindNone)
+        {
+            returnStatisticList->set(sk, true);
+            returnStatisticListSpecified=true;
+        }
+        else
+        {
+          WuAttr wa = queryWuAttribute(attributeName);
+          if (wa!=WANone)
+          {
+              returnAttributeList->set(wa-WANone,true);
+              returnAttributeSpecified=true;
+          }
+          else
+              throw MakeStringException(ECLWATCH_INVALID_INPUT, "Invalid Attribute name in AttributeToReturn(%s)", attributeName);
+        }
+    }
+}
+
+void WUDetailsVisitor::resetScope()
+{
+    currentAttribs.clear();
 }
 
 static int funcCompareString(char const * const *l, char const * const *r)
@@ -54,13 +189,12 @@ static int isLeftScopeChildOfRightScope(const char * leftScope, const char * rig
 
     while (*l && *l==*r)
     {
-        ++l;
-        ++r;
+      ++l;
+      ++r;
     }
     if ( *l==':' && *r==0)
       return true;
     return false;
-
 }
 
 inline unsigned getScopeDepth(const char * scope)
@@ -80,7 +214,6 @@ static const char * getScopeIdFromScopeName(const char * scopeName)
 
 static unsigned buildScopeTypeMaskFromStringArray(const StringArray & arrayScopeTypeList)
 {
-
     unsigned mask = 0;
     ForEachItemIn(idx, arrayScopeTypeList)
     {
@@ -89,51 +222,33 @@ static unsigned buildScopeTypeMaskFromStringArray(const StringArray & arrayScope
 
         StatisticScopeType sst = queryScopeType(scopeType);
         if (sst==SSTnone ||sst==SSTall)
-            throw MakeStringException(ECLWATCH_INVALID_INPUT, "Invalid ScopeType(%s) in filterNestedScopeTypes",scopeType);
+          throw MakeStringException(ECLWATCH_INVALID_INPUT, "Invalid ScopeType(%s) in filterNestedScopeTypes",scopeType);
         mask |= (1<<sst);
     }
-    if (mask==0)
-      mask=-1; // If no scope type filter, then filtering on scope type disabled
+    if (mask==0) mask=-1; // If no scope type filter, then filtering on scope type disabled
 
     return mask;
 }
 
-static const unsigned StatisticFilterMaskSize = StatisticKind::StMax;
-static const unsigned AttributeFilterMaskSize = WuAttr::WAMax-WANone;
-
-CWUDetails::CWUDetails(IConstWorkUnit *_workunit, const char *_wuid, IEspWUDetailsRequest &req)
-: workunit(_workunit), wuid(_wuid), scopeOptions(req.getScopeOptions()),
-  attribOptions(req.getAttributeOptions()), maxTimestamp(0)
+WUDetails::WUDetails(IConstWorkUnit *_workunit, const char *_wuid, IEspWUDetailsRequest &req)
+: workunit(_workunit), wuid(_wuid), scopeOptions(req.getScopeOptions()), 
+attribOptions(req.getAttributeOptions()), attribsToReturn(req.getAttributeToReturn())
 {
     IConstWUScopeFilter & scopeFilter = req.getFilter();
-    IConstWUAttributeToReturn & attribsToReturn = req.getAttributeToReturn();
-    IConstWUNestedFilter & nfilter = req.getNested();
-
     ids.appendList(scopeFilter.getIds());
     scopes.appendList(scopeFilter.getScopes());
-    maxDepth  = scopeFilter.getMaxDepth();
+    maxDepth  = scopeFilter.getMaxDepth();    
+
+    IConstWUNestedFilter & nfilter = req.getNested();
     nestedDepth = nfilter.getDepth();
 
-    __int64 reqMinVersion = atoi64(attribsToReturn.getMinVersion());
-    // minVersion==0 => keep minVersion unchanged so that scopes returned regardless of version number
-    // otherise => increment so that the previously return scopes are not returned
-    minVersion = (reqMinVersion>0) ? reqMinVersion+1 : 0;
-
-    returnStatisticListSpecified=false;
-    returnStatisticList.set(createBitSet(StatisticFilterMaskSize,true));
-
-    returnAttributeSpecified = false;
-    returnAttributeList.set(createBitSet(AttributeFilterMaskSize,true));
-
-    buildAttribListToReturn(attribsToReturn);
-    buildAttribFilter(scopeFilter.getAttributeFilters());
     nestedScopeTypeFilterMask = buildScopeTypeMaskFromStringArray(nfilter.getScopeTypes());
     scopeTypeFilterMask = buildScopeTypeMaskFromStringArray(scopeFilter.getScopeTypes());
 
     ids.pruneEmpty();
-    ids.sortAscii();      // Will need to lookup up 'id' in ids (for bSearch)
+    ids.sortAscii();
     scopes.pruneEmpty();
-    scopes.sortAscii();  // needed when searching nested scope
+    scopes.sortAscii();
 
     // If a compile time error is reported here then the number of enums in StatisticScopeType has grown so that
     // an 'unsigned' is too small to be used as a mask for all the values in StatisticScopeType
@@ -141,140 +256,78 @@ CWUDetails::CWUDetails(IConstWorkUnit *_workunit, const char *_wuid, IEspWUDetai
 
     filterByScope = scopes.ordinality()>0;
     filterById = ids.ordinality()>0;
-    resetScope();
+    buildAttribFilter(scopeFilter.getAttributeFilters());
 }
 
-StatisticsFilter * CWUDetails::getStatisticsFilter()
+void WUDetails::processRequest(IEspWUDetailsResponse &resp)
 {
-    return new StatisticsFilter("*", "*", "*", "*", NULL, "*");
-}
+    IArrayOf<IEspWUResponseScope> respScopes;
+    WUDetailsVisitor wuDetailsVisitor(attribOptions, attribsToReturn);
 
-void CWUDetails::getResponse(IEspWUDetailsResponse &resp)
-{
+    Owned<StatisticsFilter> filter(getStatisticsFilter());
+    StringBuffer matchedScope;
+    unsigned matchedScopeDepth;
+
+    Owned<IConstWUScopeIterator> iter = &workunit->getScopeIterator(filter);
+    ForEach(*iter)
+    {
+        const char * scope = iter->queryScope();
+        StatisticScopeType scopeType = iter->getScopeType();
+
+        unsigned scopeDepth = getScopeDepth(scope);
+        if (maxDepth && scopeDepth > maxDepth)
+        {
+          // Scope is deeper than maxDepth, check if scope is valid for nested conditions
+          // Note: this code relies on startScope being called in parent->child scope order
+          if (!nestedDepth || (scopeDepth > maxDepth + nestedDepth) ||
+            !isLeftScopeChildOfRightScope(scope, matchedScope.str()) ||
+            (scopeDepth > matchedScopeDepth + nestedDepth) ||
+            ((nestedScopeTypeFilterMask & (1<<scopeType))==0))
+              continue;
+        }
+        else
+        {
+          if ((scopeTypeFilterMask & (1<<scopeType))==0)
+              continue;
+
+          const char *id = getScopeIdFromScopeName(scope);
+          if (filterById && ids.bSearch(id,funcCompareString)==NotFound)
+              continue;
+
+          if (filterByScope && scopes.bSearch(scope, funcCompareString)==NotFound)
+              continue;
+
+          matchedScope.set(scope);
+          matchedScopeDepth = scopeDepth;
+          if (!scopeOptions.getIncludeMatchedScopesInResults())
+              continue;
+        }
+
+        if (!statisticsMatchesFilter(iter) || !attributesMatchesFilter(iter))
+          continue;
+
+        iter->playProperties(wuDetailsVisitor);
+
+        Owned<IEspWUResponseScope> respScope = createWUResponseScope("","");
+        if (scopeOptions.getIncludeScope())     respScope->setScope(scope);
+        if (scopeOptions.getIncludeScopeType()) respScope->setScopeType(queryScopeTypeName(scopeType));
+        if (scopeOptions.getIncludeId())        respScope->setId(getScopeIdFromScopeName(scope));
+
+        IArrayOf<IEspWUResponseAttribute> & attribs = wuDetailsVisitor.getCurrentAttribs();
+        respScope->setAttributes(attribs);
+        respScopes.append(*respScope.getClear());
+
+        wuDetailsVisitor.resetScope();
+    }
     StringBuffer maxVersion;
-    maxVersion.append(maxTimestamp);
+    maxVersion.append(wuDetailsVisitor.getMaxTimestamp());
 
     resp.setWUID(wuid.str());
     resp.setMaxVersion(maxVersion.str());
     resp.setScopes(respScopes);
 }
 
-void CWUDetails::startScope(const char * scope, StatisticScopeType type)
-{
-    unsigned scopeDepth = getScopeDepth(scope);
-    if (maxDepth && scopeDepth > maxDepth)
-    {
-        // Scope is deeper than maxDepth, check if scope is valid for nested conditions
-        // Note: this code relies on startScope being called in parent->child scope order
-        if (!nestedDepth || (scopeDepth > maxDepth + nestedDepth) ||
-            !isLeftScopeChildOfRightScope(scope, matchedScope.str()) ||
-            (scopeDepth > matchedScopeDepth + nestedDepth) ||
-            ((nestedScopeTypeFilterMask & (1<<type))==0))
-            return setSkipScope(true);
-    }
-    else
-    {
-        if ((scopeTypeFilterMask & (1<<type))==0)
-            return setSkipScope(true);
-
-        const char *id = getScopeIdFromScopeName(scope);
-        if (filterById && ids.bSearch(id,funcCompareString)==NotFound)
-            return setSkipScope(true);
-
-        if (filterByScope && scopes.bSearch(scope, funcCompareString)==NotFound)
-            return setSkipScope(true);
-        matchedScope.set(scope);
-        matchedScopeDepth = scopeDepth;
-        if (!scopeOptions.getIncludeMatchedScopesInResults())
-            return setSkipScope(true);
-    }
-    setNewScope(scope, type);
-}
-
-void CWUDetails::stopScope()
-{
-    if (!skipScope && hasScopeStarted)
-    {
-        Owned<IEspWUResponseScope> respScope = buildRespScope();
-        respScopes.append(*respScope.getClear());
-    }
-    resetScope();
-}
-
-void CWUDetails::noteStatistic(StatisticKind kind, unsigned __int64 value, IConstWUStatistic & extra)
-{
-    if (skipScope) return;
-
-    unsigned __int64 timeStamp = extra.getTimestamp();
-    if (timeStamp<minVersion)
-        return;
-    if (timeStamp>maxTimestamp)
-        maxTimestamp = timeStamp;
-
-    // Check attribute is in list of return attribute
-    if (returnStatisticListSpecified && !returnStatisticList->test(kind))
-        return;
-
-    Owned<IEspWUResponseAttribute> attrib = createWUResponseAttribute("","");
-    SCMStringBuffer tmpStr;;
-
-    if (kind != StKindNone)
-        attrib->setName(queryStatisticName(kind));
-    if (attribOptions.getIncludeRawValue())
-    {
-        StringBuffer rawValue;
-        rawValue.append(value);
-        attrib->setRawValue(rawValue);
-    }
-    if (attribOptions.getIncludeFormatted())
-        attrib->setFormatted(extra.getFormattedValue(tmpStr).str());
-    if (attribOptions.getIncludeMeasure() && extra.getMeasure()!= SMeasureNone)
-        attrib->setMeasure(queryMeasureName(extra.getMeasure()));
-    if (attribOptions.getIncludeCreator())
-        attrib->setCreator(extra.getCreator(tmpStr).str());
-    if (attribOptions.getIncludeCreatorType() && extra.getCreatorType() != SCTnone)
-        attrib->setCreatorType(queryCreatorTypeName(extra.getCreatorType()));
-
-    currentAttribs.append(*attrib.getClear());
-}
-
-void CWUDetails::noteAttribute(WuAttr attr, const char * value)
-{
-    if (skipScope) return;
-
-
-    if (returnAttributeSpecified && !returnAttributeList->test(attr))
-        return;
-
-    Owned<IEspWUResponseAttribute> attrib = createWUResponseAttribute("","");
-
-    attrib->setName(queryWuAttributeName(attr));
-    if (attribOptions.getIncludeFormatted())
-        attrib->setFormatted(value);
-
-    currentAttribs.append(*attrib.getClear());
-}
-
-void CWUDetails::noteHint(const char * kind, const char * value)
-{
-    if (skipScope) return;
-
-    if (returnAttributeSpecified || returnStatisticListSpecified)
-        return;
-
-    StringBuffer hint("hint:");
-    hint.append(kind);
-
-    Owned<IEspWUResponseAttribute> attrib = createWUResponseAttribute("","");
-
-    attrib->setName(hint);
-    if (attribOptions.getIncludeFormatted())
-        attrib->setFormatted(value);
-
-    currentAttribs.append(*attrib.getClear());
-}
-
-void CWUDetails::buildAttribFilter(IArrayOf<IConstWUAttributeFilter> & reqAttribFilter)
+void WUDetails::buildAttribFilter(IArrayOf<IConstWUAttributeFilter> & reqAttribFilter)
 {
     ForEachItemIn(idx,reqAttribFilter)
     {
@@ -299,9 +352,8 @@ void CWUDetails::buildAttribFilter(IArrayOf<IConstWUAttributeFilter> & reqAttrib
             throw MakeStringException(ECLWATCH_INVALID_INPUT, "Invalid Attribute Name ('%s') in Attribute Filter", attributeName);
         if (sk!=StKindNone)
         {
-
             Owned<StatisticFilter> caf = new StatisticFilter(sk, atoi64(exactValue), atoi64(minValue), atoi64(maxValue),
-                                                             hasExactValue, hasMinValue, hasMaxValue);
+                                                            hasExactValue, hasMinValue, hasMaxValue);
             arrayStatisticFilter.append(*caf.getClear());
         }
         else
@@ -310,7 +362,7 @@ void CWUDetails::buildAttribFilter(IArrayOf<IConstWUAttributeFilter> & reqAttrib
             if (wa!=WANone)
             {
                 Owned<AttributeFilter> caf = new AttributeFilter(wa, exactValue, minValue, maxValue,
-                                                                 hasExactValue, hasMinValue, hasMaxValue);
+                                                              hasExactValue, hasMinValue, hasMaxValue);
                 arrayAttribFilter.append(*caf.getClear());
             }
             else
@@ -319,71 +371,27 @@ void CWUDetails::buildAttribFilter(IArrayOf<IConstWUAttributeFilter> & reqAttrib
     }
 }
 
-void CWUDetails::buildAttribListToReturn(IConstWUAttributeToReturn & attribsToReturn)
+StatisticsFilter * WUDetails::getStatisticsFilter()
 {
-    StringArray & attribsToReturnList = attribsToReturn.getAttributes();
-    returnStatisticListSpecified=false;
-    ForEachItemIn(idx,attribsToReturnList)
+    Owned<StatisticsFilter> sf = new StatisticsFilter("*", "*", "*", "*", NULL, "*");
+
+    const char * measure = attribsToReturn.getMeasure();
+    if (*measure!=0)
     {
-        const char * attributeName = attribsToReturnList[idx];
-        if (*attributeName==0) continue;
-
-        StatisticKind sk = queryStatisticKind(attributeName);
-        if (sk==StKindAll)
-            throw MakeStringException(ECLWATCH_INVALID_INPUT, "Invalid Attribute name in AttributeToReturn(%s)",attributeName);
-        if (sk!=StKindNone)
-        {
-            returnStatisticList->set(sk, true);
-            returnStatisticListSpecified=true;
-        }
-        else
-        {
-            WuAttr wa = queryWuAttribute(attributeName);
-            if (wa!=WANone)
-            {
-                returnAttributeList->set(wa-WANone,true);
-                returnAttributeSpecified=true;
-            }
-            else
-                throw MakeStringException(ECLWATCH_INVALID_INPUT, "Invalid Attribute name in AttributeToReturn(%s)",attributeName);
-        }
+        StatisticMeasure sm = queryMeasure(measure);
+        if (sm==SMeasureNone)
+            throw MakeStringException(ECLWATCH_INVALID_INPUT, "Invalid measure(%s)", measure);
+        if (sm!=SMeasureAll)
+            sf->setMeasure(sm);
     }
+
+    sf->setScopeDepth(0,maxDepth+nestedDepth);
+
+    return sf.getClear();
 }
 
-void CWUDetails::setNewScope(const char *scope, StatisticScopeType type)
-{
-    hasScopeStarted = true;
-    setSkipScope(false);
-    currentScope.set(scope);
-    currentScopeType = type;
-    currentAttribs.clear();
-}
 
-void CWUDetails::resetScope()
-{
-    hasScopeStarted = false;
-    setSkipScope(false);
-    currentScope.clear();
-    currentAttribs.clear();
-}
-
-IEspWUResponseScope * CWUDetails::buildRespScope()
-{
-    const char * scopeType = queryScopeTypeName(currentScopeType);
-    const char * id =  getScopeIdFromScopeName(currentScope);
-
-    Owned<IEspWUResponseScope> wuscope = createWUResponseScope("","");
-
-    if (scopeOptions.getIncludeScope())     wuscope->setScope(currentScope);
-    if (scopeOptions.getIncludeScopeType()) wuscope->setScopeType(scopeType);
-    if (scopeOptions.getIncludeId())        wuscope->setId(id);
-
-    wuscope->setAttributes(currentAttribs);
-
-    return wuscope.getClear();
-}
-
-bool CWUDetails::statisticsMatchesFilter(IConstWUScopeIterator *iter)
+bool WUDetails::statisticsMatchesFilter(IConstWUScopeIterator *iter)
 {
     ForEachItemIn(idx, arrayStatisticFilter)
     {
@@ -399,7 +407,7 @@ bool CWUDetails::statisticsMatchesFilter(IConstWUScopeIterator *iter)
     return true;
 }
 
-bool CWUDetails::attributesMatchesFilter(IConstWUScopeIterator *iter)
+bool WUDetails::attributesMatchesFilter(IConstWUScopeIterator *iter)
 {
     ForEachItemIn(idx, arrayAttribFilter)
     {
@@ -413,3 +421,5 @@ bool CWUDetails::attributesMatchesFilter(IConstWUScopeIterator *iter)
     }
     return true;
 }
+
+
