@@ -1921,16 +1921,27 @@ ESPstruct [nil_remove] WUResponseScope
 ESPResponse [exceptions_inline] WUDetailsResponse
 {
     uint64 MaxVersion;                              // largest version for any matches
-    string WUID;                                    // allows wildcarded requests to be interpreted.
+    string WUID;                                    // all    [optional] ESParray<string, Attribute> Attributes; // a list of attributes to returnows wildcarded requests to be interpreted.
     ESParray<ESPstruct WUResponseScope, Scope> Scopes;
 };
 
+// ----------------------------------------------------------------------------------
+ESPRequest WUDetailsMetaRequest
+{
+};
+
+ESPResponse [exceptions_inline] WUDetailsMetaResponse
+{
+    ESParray<string, Attribute> Attributes;
+    ESParray<string, ScopeType> ScopeTypes;
+    ESParray<string, Measure> Measures;
+};
 // ----------------------------------------------------------------------------------
 
 
 ESPservice [
     auth_feature("DEFERRED"), //This declares that the method logic handles feature level authorization
-    version("1.67"), default_client_version("1.67"),
+    version("1.68"), default_client_version("1.68"),
     noforms,exceptions_inline("./smc_xslt/exceptions.xslt"),use_method_name] WsWorkunits
 {
     ESPmethod [resp_xsl_default("/esp/xslt/workunits.xslt")]     WUQuery(WUQueryRequest, WUQueryResponse);
@@ -2009,7 +2020,8 @@ ESPservice [
     ESPmethod [min_ver("1.57")] WUListArchiveFiles(WUListArchiveFilesRequest, WUListArchiveFilesResponse);
     ESPmethod [min_ver("1.57")] WUGetArchiveFile(WUGetArchiveFileRequest, WUGetArchiveFileResponse);
     ESPmethod [min_ver("1.61")] WUGetNumFileToCopy(WUGetNumFileToCopyRequest, WUGetNumFileToCopyResponse);
-    ESPmethod WUDetails(WUDetailsRequest, WUDetailsResponse);
+    ESPmethod [min_ver("1.68")] WUDetails(WUDetailsRequest, WUDetailsResponse);
+    ESPmethod [min_ver("1.68")] WUDetailsMeta(WUDetailsMetaRequest, WUDetailsMetaResponse);
 };
 
 

@@ -3980,6 +3980,46 @@ bool CWsWorkunitsEx::onWUDetails(IEspContext &context, IEspWUDetailsRequest &req
     return true;
 }
 
+bool CWsWorkunitsEx::onWUDetailsMeta(IEspContext &context, IEspWUDetailsMetaRequest &req, IEspWUDetailsMetaResponse &resp)
+{
+    try
+    {
+        StringArray attributes;
+        for (unsigned i=StatisticKind::StKindAll+1; i<StatisticKind::StMax;++i)
+        {
+            const char * s = queryStatisticName((StatisticKind)i);
+            if (s && *s) attributes.append(s);
+        }
+        for (unsigned i=WuAttr::WANone+1; i<WuAttr::WAMax; i++)
+        {
+            const char * s = queryWuAttributeName((WuAttr)i);
+            if (s && *s) attributes.append(s);
+        }
+        resp.setAttributes(attributes);
+
+        StringArray scopeTypes;
+        for (unsigned i=StatisticScopeType::SSTall+1; i<StatisticScopeType::SSTmax; ++i)
+        {
+            const char * s = queryScopeTypeName((StatisticScopeType)i);
+            if (s && *s) scopeTypes.append(s);
+        }
+        resp.setScopeTypes(scopeTypes);
+
+        StringArray measures;
+        for (unsigned i=StatisticMeasure::SMeasureAll+1; i<StatisticMeasure::SMeasureMax; ++i)
+        {
+            const char *s = queryMeasureName((StatisticMeasure)i);
+            if (s && *s) measures.append(s);
+        }
+        resp.setMeasures(measures);
+    }
+    catch(IException* e)
+    {
+        FORWARDEXCEPTION(context, e,  ECLWATCH_INTERNAL_ERROR);
+    }
+    return true;
+}
+
 bool CWsWorkunitsEx::onGVCAjaxGraph(IEspContext &context, IEspGVCAjaxGraphRequest &req, IEspGVCAjaxGraphResponse &resp)
 {
     try
