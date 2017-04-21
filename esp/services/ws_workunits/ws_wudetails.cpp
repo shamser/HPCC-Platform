@@ -107,7 +107,12 @@ void WUDetailsVisitor::noteAttribute(WuAttr attr, const char * value)
 {
     if (onlyDynamic) return;
 
-    if (returnAttributeSpecified && !returnAttributeList->test(attr-WANone))
+    if (returnAttributeSpecified)
+    {
+        if (!returnAttributeList->test(attr-WANone))
+            return;
+    }
+    else if (returnStatisticList)
         return;
 
     Owned<IEspWUResponseAttribute> attrib = createWUResponseAttribute("","");
