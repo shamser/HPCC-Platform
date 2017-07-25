@@ -2669,7 +2669,7 @@ public:
     {
     public:
         CCassandraWuGraphStats(const CCassandraWorkUnit *_parent, StatisticCreatorType _creatorType, const char * _creator, const char * _rootScope, unsigned _id)
-        : CWuGraphStats(createPTree(_rootScope), _creatorType, _creator, _rootScope, _id),
+        : CWuGraphStats(createPTree(_rootScope), _creatorType, _creator, 0, _rootScope, _id),
           parent(_parent)
         {
         }

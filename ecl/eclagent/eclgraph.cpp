@@ -853,9 +853,16 @@ void EclSubGraph::updateProgress()
 {
     if (!isChildGraph && agent->queryRemoteWorkunit())
     {
-        Owned<IWUGraphStats> progress = parent.updateStats(queryStatisticsComponentType(), queryStatisticsComponentName(), id);
+        Owned<IWUGraphStats> progress = parent.updateStats(queryStatisticsComponentType(), queryStatisticsComponentName(), agent->getWorkflowId(), id);
         IStatisticGatherer & stats = progress->queryStatsBuilder();
         updateProgress(stats);
+
+        StringBuffer subgraphid;
+        subgraphid.append(parent.queryGraphName()).append(":").append(SubGraphScopePrefix).append(id);
+        if (startGraphTime)
+            parent.updateWUStatistic(SSTsubgraph, subgraphid, StWhenStarted, "", startGraphTime);
+        if (elapsedGraphCycles)
+            parent.updateWUStatistic(SSTsubgraph, subgraphid, StTimeElapsed, "", cycle_to_nanosec(elapsedGraphCycles));
     }
 }
 
@@ -1172,7 +1179,7 @@ void EclGraph::execute(const byte * parentExtract)
 
     {
         Owned<IWorkUnit> wu(agent->updateWorkUnit());
-        addTimeStamp(wu, SSTgraph, queryGraphName(), StWhenStarted);
+        addTimeStamp(wu, SSTgraph, queryGraphName(), StWhenStarted, agent->getWorkflowId());
     }
 
     try
@@ -1200,7 +1207,7 @@ void EclGraph::execute(const byte * parentExtract)
             const char *totalTimeStr = "Total cluster time";
             getWorkunitTotalTime(wu, "hthor", totalTimeNs, totalThisTimeNs);
 
-            updateWorkunitTimeStat(wu, SSTgraph, queryGraphName(), StTimeElapsed, description.str(), elapsedNs);
+            updateWorkunitTimeStat(wu, SSTgraph, queryGraphName(), StTimeElapsed, description.str(), elapsedNs, agent->getWorkflowId());
             updateWorkunitTimeStat(wu, SSTglobal, GLOBAL_SCOPE, StTimeElapsed, NULL, totalThisTimeNs+elapsedNs);
             wu->setStatistic(SCTsummary, "hthor", SSTglobal, GLOBAL_SCOPE, StTimeElapsed, totalTimeStr, totalTimeNs+elapsedNs, 1, 0, StatsMergeReplace);
         }
@@ -1270,7 +1277,7 @@ void EclGraph::updateLibraryProgress()
     ForEachItemIn(idx, graphs)
     {
         EclSubGraph & cur = graphs.item(idx);
-        Owned<IWUGraphStats> progress = wu->updateStats(queryGraphName(), queryStatisticsComponentType(), queryStatisticsComponentName(), cur.id);
+        Owned<IWUGraphStats> progress = wu->updateStats(queryGraphName(), queryStatisticsComponentType(), queryStatisticsComponentName(), agent->getWorkflowId(), cur.id);
         cur.updateProgress(progress->queryStatsBuilder());
     }
 }
@@ -1411,9 +1418,16 @@ void GraphResults::setResult(unsigned id, IHThorGraphResult * result)
 
 //---------------------------------------------------------------------------
 
-IWUGraphStats *EclGraph::updateStats(StatisticCreatorType creatorType, const char * creator, unsigned subgraph)
+IWUGraphStats *EclGraph::updateStats(StatisticCreatorType creatorType, const char * creator, unsigned wfid, unsigned subgraph)
 {
-    return wu->updateStats (queryGraphName(), creatorType, creator, subgraph);
+    return wu->updateStats (queryGraphName(), creatorType, creator, wfid, subgraph);
+}
+
+void EclGraph::updateWUStatistic(StatisticScopeType scopeType, const char * scope, StatisticKind kind, const char * descr, unsigned __int64 value)
+{
+    WorkunitUpdate lockedwu(&wu->lock());
+
+    updateWorkunitTimeStat(lockedwu, scopeType, scope, kind, descr, value, agent->getWorkflowId());
 }
 
 IThorChildGraph * EclGraph::resolveChildQuery(unsigned subgraphId)
