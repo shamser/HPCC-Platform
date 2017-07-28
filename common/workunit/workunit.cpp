@@ -297,12 +297,9 @@ protected:
                 id += strlen(SubGraphScopePrefix);
                 break;
             case SSTworkflow:
-                tag = "workflow";
-                id += strlen(WorkflowScopePrefix);
-                break;
             case SSTgraph:
-                tag = "graph";
-                id += strlen(GraphScopePrefix);
+                // SSTworkflow and SSTgraph may be safely ignore.  They are not required to produce the statistics.
+                continue;
             case SSTfunction:
                 //MORE:Should function scopes be included in the graph scope somehow, and if so how?
                 continue;

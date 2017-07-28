@@ -723,6 +723,7 @@ void EclGraphElement::updateProgress(IStatisticGatherer &progress)
     }
     if(isSink && activity)
     {
+        StatsActivityScope scope(progress, activity->queryId());
         activity->updateProgress(progress);
     }
 }
@@ -857,12 +858,16 @@ void EclSubGraph::updateProgress()
         IStatisticGatherer & stats = progress->queryStatsBuilder();
         updateProgress(stats);
 
-        StringBuffer subgraphid;
-        subgraphid.append(parent.queryGraphName()).append(":").append(SubGraphScopePrefix).append(id);
-        if (startGraphTime)
-            parent.updateWUStatistic(SSTsubgraph, subgraphid, StWhenStarted, "", startGraphTime);
-        if (elapsedGraphCycles)
-            parent.updateWUStatistic(SSTsubgraph, subgraphid, StTimeElapsed, "", cycle_to_nanosec(elapsedGraphCycles));
+        if (startGraphTime || elapsedGraphCycles)
+        {
+            WorkunitUpdate lockedwu(agent->updateWorkUnit());
+            StringBuffer subgraphid;
+            subgraphid.append(parent.queryGraphName()).append(":").append(SubGraphScopePrefix).append(id);
+            if (startGraphTime)
+                parent.updateWUStatistic(lockedwu, SSTsubgraph, subgraphid, StWhenStarted, nullptr, startGraphTime);
+            if (elapsedGraphCycles)
+                parent.updateWUStatistic(lockedwu, SSTsubgraph, subgraphid, StTimeElapsed, nullptr, cycle_to_nanosec(elapsedGraphCycles));
+        }
     }
 }
 
@@ -1423,10 +1428,8 @@ IWUGraphStats *EclGraph::updateStats(StatisticCreatorType creatorType, const cha
     return wu->updateStats (queryGraphName(), creatorType, creator, wfid, subgraph);
 }
 
-void EclGraph::updateWUStatistic(StatisticScopeType scopeType, const char * scope, StatisticKind kind, const char * descr, unsigned __int64 value)
+void EclGraph::updateWUStatistic(IWorkUnit *lockedwu, StatisticScopeType scopeType, const char * scope, StatisticKind kind, const char * descr, unsigned __int64 value)
 {
-    WorkunitUpdate lockedwu(&wu->lock());
-
     updateWorkunitTimeStat(lockedwu, scopeType, scope, kind, descr, value, agent->getWorkflowId());
 }
 

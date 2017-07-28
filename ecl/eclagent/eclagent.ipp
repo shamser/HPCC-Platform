@@ -1116,7 +1116,7 @@ public:
     void execute(const byte * parentExtract);
     void executeLibrary(const byte * parentExtract, IHThorGraphResults * results);
     IWUGraphStats *updateStats(StatisticCreatorType creatorType, const char * creator, unsigned wfid, unsigned subgraph);
-    void updateWUStatistic(StatisticScopeType scopeType, const char * scope, StatisticKind kind, const char * descr, unsigned __int64 value);
+    void updateWUStatistic(IWorkUnit* lockedwu, StatisticScopeType scopeType, const char* scope, StatisticKind kind, const char* descr, long long unsigned int value);
 
     EclSubGraph * idToGraph(unsigned id);
     EclGraphElement * idToActivity(unsigned id);
