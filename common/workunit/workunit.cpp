@@ -175,8 +175,6 @@ CWuGraphStats::CWuGraphStats(IPropertyTree *_progress, StatisticCreatorType _cre
     StatsScopeId graphScopeId;
     verifyex(graphScopeId.setScopeText(_rootScope));
 
-    // Allow these to work without wfid: CCassandraWuGraphStats, CRoxieContextBase and DeMonServer
-    // (Changes for HThor only for the time being)
     if (wfid)
     {
         StatsScopeId rootScopeId(SSTworkflow,wfid);
