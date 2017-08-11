@@ -2069,8 +2069,13 @@ void EclAgent::runProcess(IEclProcess *process)
     if (debugContext)
         debugContext->checkBreakpoint(DebugStateReady, NULL, NULL);
 
-    workflow.setown(new EclAgentWorkflowMachine(*this));
-    workflow->perform(this, process);
+    if(queryWorkUnit()->hasWorkflow())
+    {
+        workflow.setown(new EclAgentWorkflowMachine(*this));
+        workflow->perform(this, process);
+    }
+    else
+        process->perform(this, 0);
 
     ForEachItemIn(i, queryLibraries)
         queryLibraries.item(i).updateProgress();
