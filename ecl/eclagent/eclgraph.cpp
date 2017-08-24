@@ -873,7 +873,16 @@ void EclSubGraph::updateProgress()
 
 void EclSubGraph::updateProgress(IStatisticGatherer &progress)
 {
-    StatsSubgraphScope subgraph(progress, id);
+    OwnedPtr<StatsScopeBlock> subGraph;
+    OwnedPtr<StatsScopeBlock> activityScope;
+    //StatsSubgraphScope subgraph(progress, id);
+    if (isChildGraph)
+    {
+        activityScope.setown(new StatsActivityScope(progress, parentActivityId));
+        subGraph.setown(new StatsChildGraphScope(progress, id));
+    }
+    else
+        subGraph.setown(new StatsSubgraphScope(progress, id));
     if (startGraphTime)
         progress.addStatistic(StWhenStarted, startGraphTime);
     if (elapsedGraphCycles)

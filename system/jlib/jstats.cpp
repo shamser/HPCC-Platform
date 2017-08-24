@@ -1545,6 +1545,12 @@ public:
         CStatisticCollection & tos = scopes.tos();
         scopes.append(*tos.ensureSubScope(scopeId, false));
     }
+    virtual void beginChildGraphScope(unsigned id)
+    {
+        StatsScopeId scopeId(SSTchildgraph, id);
+        CStatisticCollection & tos = scopes.tos();
+        scopes.append(*tos.ensureSubScope(scopeId, true));
+    }
     virtual void endScope()
     {
         scopes.tos().Release();
@@ -1611,6 +1617,7 @@ public:
         beginScope(temp.str());
     }
     virtual void beginSubGraphScope(unsigned id) { throwUnexpected(); }
+    virtual void beginChildGraphScope(unsigned id) { throwUnexpected(); }
     virtual void beginActivityScope(unsigned id) { throwUnexpected(); }
     virtual void beginEdgeScope(unsigned id, unsigned oid) { throwUnexpected(); }
     virtual void endScope()

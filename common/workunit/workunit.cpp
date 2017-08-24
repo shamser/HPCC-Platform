@@ -294,6 +294,7 @@ protected:
                 tag = "node";
                 id += strlen(SubGraphScopePrefix);
                 break;
+            case SSTchildgraph:
             case SSTworkflow:
             case SSTgraph:
                 // SSTworkflow and SSTgraph may be safely ignored.  They are not required to produce the statistics.
@@ -10771,6 +10772,11 @@ public:
     virtual void beginEdgeScope(unsigned id, unsigned oid)
     {
         StatsScopeId scopeId(SSTedge, id, oid);
+        beginScope(scopeId);
+    }
+    virtual void beginChildGraphScope(unsigned id)
+    {
+        StatsScopeId scopeId(SSTchildgraph, id);
         beginScope(scopeId);
     }
     virtual void endScope()
