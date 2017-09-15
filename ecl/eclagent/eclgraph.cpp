@@ -432,6 +432,7 @@ void EclGraphElement::createFromXGMML(ILoadedDllEntry * dll, IPropertyTree * _no
     isResult = ((kind == TAKdatasetresult) || (kind == TAKrowresult));
     ownerId = node->getPropInt("att[@name=\"_parentActivity\"]/@value", 0);
     onlyUpdateIfChanged = node->getPropBool("att[@name=\"_updateIfChanged\"]/@value", false);
+    loopId = node->getPropInt("att[@name=\"_loopid\"]/@value", 0);
 }
 
 
@@ -760,7 +761,6 @@ void EclSubGraph::createFromXGMML(EclGraph * graph, ILoadedDllEntry * dll, IProp
     bool multiInstance = node->getPropBool("@multiInstance");
     if (multiInstance)
         agent = &subgraphAgentContext;
-
     isSink = xgmml->getPropBool("att[@name=\"rootGraph\"]/@value", false);
     parentActivityId = node->getPropInt("att[@name=\"_parentActivity\"]/@value", 0);
     numResults = xgmml->getPropInt("att[@name=\"_numResults\"]/@value", 0);
@@ -863,18 +863,21 @@ void EclSubGraph::updateProgress(IStatisticGatherer &progress)
 {
     OwnedPtr<StatsScopeBlock> subGraph;
     OwnedPtr<StatsScopeBlock> activityScope;
-    //StatsSubgraphScope subgraph(progress, id);
-    if (isChildGraph)
+    EclGraphElement * parentActivity = idToActivity(parentActivityId);
+    if (!parentActivity ||(parentActivity && parentActivity->loopId==0))
     {
-        activityScope.setown(new StatsActivityScope(progress, parentActivityId));
-        subGraph.setown(new StatsChildGraphScope(progress, id));
+      if (isChildGraph && parentActivityId != owner->parentActivityId)
+      {
+          activityScope.setown(new StatsActivityScope(progress, parentActivityId));
+          subGraph.setown(new StatsChildGraphScope(progress, id));
+      }
+      else
+          subGraph.setown(new StatsSubgraphScope(progress, id));
+      if (startGraphTime)
+          progress.addStatistic(StWhenStarted, startGraphTime);
+      if (elapsedGraphCycles)
+          progress.addStatistic(StTimeElapsed, cycle_to_nanosec(elapsedGraphCycles));
     }
-    else
-        subGraph.setown(new StatsSubgraphScope(progress, id));
-    if (startGraphTime)
-        progress.addStatistic(StWhenStarted, startGraphTime);
-    if (elapsedGraphCycles)
-        progress.addStatistic(StTimeElapsed, cycle_to_nanosec(elapsedGraphCycles));
     ForEachItemIn(idx, elements)
     {
         EclGraphElement & cur = elements.item(idx);
