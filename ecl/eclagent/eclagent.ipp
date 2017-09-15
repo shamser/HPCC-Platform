@@ -768,6 +768,7 @@ public:
     bool alreadyUpdated;
     bool isEof;
     unsigned whichBranch;
+    unsigned loopId;
     CIArrayOf<EclGraphElement> branches;
     UnsignedArray branchIndexes;
     EclGraphElement * conditionalLink;
