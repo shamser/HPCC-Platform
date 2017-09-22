@@ -224,6 +224,7 @@ public:
     void sortAscii(bool nocase=false);
     void sortAsciiReverse(bool nocase=false);
     void sortCompare(int (*compare)(const char * const * l, const char * const * r));
+    void pruneEmpty();
 private:
     using PARENT::sort; // prevent access to this function - to avoid ambiguity
 };

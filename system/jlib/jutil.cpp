@@ -1519,6 +1519,17 @@ void StringArray::sortCompare(int (*compare)(const char * const * l, const char 
     PARENT::sort(compare);
 }
 
+void StringArray::pruneEmpty()
+{
+    aindex_t idx = ordinality();
+    while(idx > 0)
+    {
+        --idx;
+        if (*PARENT::element(idx)==0)
+            PARENT::remove(idx);
+    }
+}
+
 
 #ifdef _WIN32
 
