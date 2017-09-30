@@ -144,7 +144,7 @@ void WUDetailsVisitor::buildAttribListToReturn(IConstWUAttributeToReturn & attri
         const char * attributeName = attribsToReturnList[idx];
         if (*attributeName==0) continue;
 
-        StatisticKind sk = queryStatisticKind(attributeName);
+        StatisticKind sk = queryStatisticKind(attributeName, StKindAll);
         if (sk==StKindAll)
             throw MakeStringException(ECLWATCH_INVALID_INPUT, "Invalid Attribute name in AttributeToReturn(%s)", attributeName);
         if (sk!=StKindNone)
@@ -154,7 +154,7 @@ void WUDetailsVisitor::buildAttribListToReturn(IConstWUAttributeToReturn & attri
         }
         else
         {
-          WuAttr wa = queryWuAttribute(attributeName);
+          WuAttr wa = queryWuAttribute(attributeName, WAAll);
           if (wa!=WANone)
           {
               returnAttributeList->set(wa-WANone,true);
@@ -198,7 +198,7 @@ void WUDetails::buildAttribFilter(IArrayOf<IConstWUAttributeFilter> & reqAttribF
             throw MakeStringException(ECLWATCH_INVALID_INPUT,
                                       "Invalid Attribute Filter ('%s') - ExactValue may not be used with MinValue or MaxValue",
                                       attributeName);
-        StatisticKind sk = queryStatisticKind(attributeName);
+        StatisticKind sk = queryStatisticKind(attributeName, StKindAll);
         if (sk==StKindAll || sk==StKindNone)
             throw MakeStringException(ECLWATCH_INVALID_INPUT, "Invalid Attribute Name ('%s') in Attribute Filter", attributeName);
         if (hasExactValue)
