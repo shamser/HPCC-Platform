@@ -1531,6 +1531,67 @@ bool CWsDfuEx::onDFUDefFile(IEspContext &context,IEspDFUDefFileRequest &req, IEs
     return true;
 }
 
+bool CWsDfuEx::onDFURecordTypeInfo(IEspContext &context, IEspDFURecordTypeInfoRequest &req, IEspDFURecordTypeInfoResponse &resp)
+{
+    try
+    {
+        if (!context.validateFeatureAccess(FEATURE_URL, SecAccess_Read, false))
+            throw MakeStringException(ECLWATCH_DFU_ACCESS_DENIED, "Failed to access DFUDefFile. Permission denied.");
+
+        const char* fileName = req.getName();
+        if (!fileName || !*fileName)
+            throw MakeStringException(ECLWATCH_MISSING_PARAMS, "File name required");
+        PROGLOG("DFUDefFile: %s", fileName);
+
+        StringBuffer username;
+        context.getUserID(username);
+
+        StringBuffer rawStr,returnStr;
+
+        Owned<IUserDescriptor> userdesc;
+        if(username.length() > 0)
+        {
+            userdesc.setown(createUserDescriptor());
+            userdesc->set(username.str(), context.queryPassword(), context.querySessionToken(), context.querySignature());
+        }
+
+        Owned<IDistributedFile> df = queryDistributedFileDirectory().lookup(fileName, userdesc);
+        if(!df)
+            throw MakeStringException(ECLWATCH_FILE_NOT_EXIST,"Cannot find file %s.",fileName);
+        if(!df->queryAttributes().hasProp("ECL"))
+            throw MakeStringException(ECLWATCH_MISSING_PARAMS,"No record definition for file %s.",fileName);
+
+        StringBuffer text;
+        text.append(df->queryAttributes().queryProp("ECL"));
+
+        MultiErrorReceiver errs;
+        OwnedHqlExpr record = parseQuery(text.str(), &errs);
+        if (errs.errCount())
+        {
+            StringBuffer errtext;
+            IError *first = errs.firstError();
+            first->toString(errtext);
+            throw MakeStringException(ECLWATCH_CANNOT_PARSE_ECL_QUERY, "Failed in parsing ECL query: %s @ %d:%d.", errtext.str(), first->getColumn(), first->getLine());
+        }
+
+        if(!record)
+            throw MakeStringException(ECLWATCH_CANNOT_PARSE_ECL_QUERY, "Failed in parsing ECL query.");
+
+        StringBuffer jsonFormat;
+        MemoryBuffer binFormat;
+
+        exportJsonType(jsonFormat,record);
+        exportBinaryType(binFormat,record);
+
+        resp.setJsonInfo(jsonFormat);
+        resp.setBinInfo(binFormat);
+    }
+    catch(IException* e)
+    {
+        FORWARDEXCEPTION(context, e,  ECLWATCH_INTERNAL_ERROR);
+    }
+    return true;
+}
 void CWsDfuEx::xsltTransformer(const char* xsltPath,StringBuffer& source,StringBuffer& returnStr)
 {
     if (m_xsl.get() == 0)

@@ -319,6 +319,17 @@ DFUDefFileResponse
     [http_content("application/octet-stream")] binary defFile;
 };
 
+ESPrequest DFURecordTypeInfoRequest
+{
+    string Name;
+};
+
+ESPresponse DFURecordTypeInfoResponse
+{
+    [json_inline(1)] string jsonInfo;
+    binary binInfo;
+};
+
 ESPrequest SuperfileActionRequest
 {
     string action;
@@ -771,6 +782,7 @@ ESPservice [
 
     ESPmethod ListHistory(ListHistoryRequest, ListHistoryResponse);
     ESPmethod EraseHistory(EraseHistoryRequest, EraseHistoryResponse);
+    ESPmethod DFURecordTypeInfo(DFURecordTypeInfoRequest, DFURecordTypeInfoResponse);
 };
 
 SCMexportdef(WSDFU);
