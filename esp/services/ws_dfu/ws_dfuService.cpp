@@ -346,11 +346,13 @@ bool CWsDfuEx::onDFUInfo(IEspContext &context, IEspDFUInfoRequest &req, IEspDFUI
 
         if (req.getUpdateDescription())
         {
-            doGetFileDetails(context, userdesc.get(), req.getFileName(), req.getCluster(), req.getFileDesc(), resp.updateFileDetail());
+            doGetFileDetails(context, userdesc.get(), req.getFileName(), req.getCluster(), req.getFileDesc(),
+                             req.getIncludeJsonTypeInfo(), req.getIncludeBinTypeInfo(), resp.updateFileDetail());
         }
         else
         {
-            doGetFileDetails(context, userdesc.get(), req.getName(), req.getCluster(), NULL, resp.updateFileDetail());
+            doGetFileDetails(context, userdesc.get(), req.getName(), req.getCluster(), NULL,
+                             req.getIncludeJsonTypeInfo(), req.getIncludeBinTypeInfo(), resp.updateFileDetail());
         }
     }
     catch(IException* e)
@@ -1880,7 +1882,7 @@ void CWsDfuEx::getFilePartsOnClusters(IEspContext &context, const char* clusterR
 }
 
 void CWsDfuEx::doGetFileDetails(IEspContext &context, IUserDescriptor* udesc, const char *name, const char *cluster,
-    const char *description,IEspDFUFileDetail& FileDetails)
+    const char *description, bool includeJsonTypeInfo, bool includeBinTypeInfo, IEspDFUFileDetail& FileDetails)
 {
     if (!name || !*name)
         throw MakeStringException(ECLWATCH_MISSING_PARAMS, "File name required");
@@ -2244,6 +2246,38 @@ void CWsDfuEx::doGetFileDetails(IEspContext &context, IUserDescriptor* udesc, co
             default:
                 FileDetails.setUserPermission("Permission Unknown");
                 break;
+            }
+        }
+    }
+    if (includeJsonTypeInfo||includeBinTypeInfo)
+    {
+        const char *ecltext = df->queryAttributes().queryProp("ECL");
+        if (ecltext && *ecltext)
+        {
+            MultiErrorReceiver errs;
+            OwnedHqlExpr record = parseQuery(ecltext, &errs);
+            if (errs.errCount())
+            {
+                StringBuffer errtext;
+                IError *first = errs.firstError();
+                first->toString(errtext);
+                throw MakeStringException(ECLWATCH_CANNOT_PARSE_ECL_QUERY, "Failed in parsing ECL query: %s @ %d:%d.", errtext.str(), first->getColumn(), first->getLine());
+            }
+
+            if(!record)
+                throw MakeStringException(ECLWATCH_CANNOT_PARSE_ECL_QUERY, "Failed in parsing ECL query.");
+
+            if (includeJsonTypeInfo)
+            {
+                StringBuffer jsonFormat;
+                exportJsonType(jsonFormat,record);
+                FileDetails.setJsonInfo(jsonFormat);
+            }
+            if (includeBinTypeInfo)
+            {
+                MemoryBuffer binFormat;
+                exportBinaryType(binFormat,record);
+                FileDetails.setBinInfo(binFormat);
             }
         }
     }
