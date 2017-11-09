@@ -1,0 +1,7 @@
+
+<Result>
+<Dataset name='Result 1'>
+ <Row><Header><TestName>default</TestName></Header><Response><MaxVersion>0</MaxVersion><WUID></WUID><Scopes></Scopes></Response></Row>
+ <Row><Header><TestName>SecondTest</TestName></Header><Response><MaxVersion>0</MaxVersion><WUID></WUID><Scopes></Scopes></Response></Row>
+</Dataset>
+</Result>

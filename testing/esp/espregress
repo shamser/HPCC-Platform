@@ -1,0 +1,53 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import subprocess
+import xml.etree.cElementTree as xml
+
+outputdir = 'results/wudetails/'
+keydir = 'key/wudetails/'
+
+if not os.access(outputdir+'thor', os.R_OK):
+    os.makedirs(outputdir+'thor')
+if not os.access(outputdir+'hthor', os.R_OK):
+    os.makedirs(outputdir+'hthor')
+if not os.access(outputdir+'roxie', os.R_OK):
+    os.makedirs(outputdir+'roxie')
+
+joblistxml = subprocess.check_output(['ecl', 'run', 'hthor', 'wudump1.ecl'])
+
+root = xml.fromstring(joblistxml)
+
+print 'Running WuDetails Regression'
+for element in root.iterfind('Dataset/Row'):
+    wuid = element.find('wuid').text.strip();
+    query = element.find('queryname').text.strip();
+    cluster = element.find('cluster').text.strip();
+    print 'WUDetails:', query, '  (Cluster:', cluster+')'
+    outfilename = outputdir+cluster+'/'+query+'.xml'
+    outfile = os.open(outfilename,os.O_WRONLY|os.O_CREAT|os.O_TRUNC)
+    subprocess.call(['ecl', 'run', 'hthor', '-Xjobwuid='+wuid, 'wudump2.ecl'], stdout=outfile)
+    os.fsync(outfile);
+    os.close(outfile);
+
+print ''
+
+print 'Comparing'
+for element in root.iterfind('Dataset/Row'):
+    wuid = element.find('wuid').text.strip();
+    query = element.find('queryname').text.strip();
+    cluster = element.find('cluster').text.strip();
+    print 'WUDetails:', query, '  (Cluster:', cluster+')'
+
+    outfilename = outputdir+cluster+'/'+query+'.xml'
+    keyfilename = keydir+cluster+'/'+query+'.xml'
+
+    # Compare results
+    compare = subprocess.check_output(['soapplus', '-diff', keyfilename, outfilename])
+    if not compare:
+       print '  Regression: OK'
+    else:
+       print '  Regression: FAILED'
+       print compare[:500]
+    print    

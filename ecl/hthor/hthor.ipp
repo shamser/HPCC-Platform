@@ -319,6 +319,7 @@ public:
     virtual void execute();
     virtual void ready();
     virtual void stop();
+    virtual void updateProgressForOther(IStatisticGatherer &progress, unsigned otherActivity, unsigned otherSubgraph) const override {;};
 };
 
 class CHThorSpillActivity : public CHThorDiskWriteActivity
