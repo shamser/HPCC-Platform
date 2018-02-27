@@ -12186,18 +12186,33 @@ bool parseForwardModuleMember(HqlGramCtx & _parent, IHqlScope *scope, IHqlExpres
     return (prevErrors == ctx.errs->errCount());
 }
 
-
 void parseAttribute(IHqlScope * scope, IFileContents * contents, HqlLookupContext & ctx, IIdAtom * name)
 {
+    bool alreadySimplified = false;
     HqlLookupContext attrCtx(ctx);
     attrCtx.noteBeginAttribute(scope, contents, name);
 
+    // Use simplified definition if syntax checking
+    if (!ctx.regenerateCache() && ctx.syntaxChecking() && ctx.hasCacheLocation() && !ctx.disableCacheUse())
+    {
+        HqlParseContext & parseContext = ctx.queryParseContext();
+        Owned<IEclCachedDefinition> cached = parseContext.cache->getDefinition(str(name));
+        if (cached->isUpToDate(parseContext.optionHash))
+        {
+            IFileContents * cachecontents = cached->querySimplifiedEcl();
+            if (cachecontents)
+            {
+                contents = cachecontents;
+                alreadySimplified = true;
+            }
+        }
+    }
+
+    //The attribute will be added to the current scope as a side-effect of parsing the attribute.
     try
     {
-        //The attribute will be added to the current scope as a side-effect of parsing the attribute.
-        const char * moduleName = scope->queryFullName();
-
         //NOTE: The container scope needs to be re-resolved globally so merged file trees are supported
+        const char * moduleName = scope->queryFullName();
         Owned<IHqlScope> globalScope = getResolveDottedScope(moduleName, LSFpublic, ctx);
         HqlGram parser(globalScope, scope, contents, attrCtx, NULL, false, true);
         parser.setExpectedAttribute(name);
@@ -12208,16 +12223,29 @@ void parseAttribute(IHqlScope * scope, IFileContents * contents, HqlLookupContex
     }
     catch (...)
     {
-        attrCtx.noteEndAttribute(false, false, false, nullptr);
+        attrCtx.noteEndAttribute(false);
         throw;
     }
     OwnedHqlExpr parsed = scope->lookupSymbol(name, LSFsharedOK|LSFnoreport, ctx);
-    OwnedHqlExpr simplified = createSimplifiedDefinition(parsed);
-    bool canCache = parsed && (parsed->getOperator() != no_forwardscope);
+    bool canCache = parsed && (parsed->getOperator() != no_forwardscope) && !alreadySimplified;
     bool isMacro = parsed && parsed->isMacro();
+    OwnedHqlExpr simplified;
+    if (canCache && (ctx.syntaxChecking() || ctx.hasCacheLocation()))
+    {
+        simplified.setown(createSimplifiedDefinition(parsed));
 
-    attrCtx.noteEndAttribute(true, canCache, isMacro, simplified);
+        if (simplified)
+        {
+            if (ctx.hasCacheLocation())
+                attrCtx.createCache(simplified, isMacro);
+            if (ctx.checkSimpleDef())
+                verifySimpifiedDefinition(simplified, attrCtx);
+            if (simplified != parsed && ctx.syntaxChecking() && !ctx.disableCacheUse())
+                scope->defineSymbol(LINK(simplified));
+        }
+    }
 
+    attrCtx.noteEndAttribute(true);
     if (attrCtx.queryParseContext().timeParser)
     {
         StringBuffer fullname;
@@ -12228,6 +12256,51 @@ void parseAttribute(IHqlScope * scope, IFileContents * contents, HqlLookupContex
         attrCtx.reportTiming(fullname);
     }
 }
+
+// Parses string containing ecl definition and returns hql expression
+// (Will not generate simplified expression cache as a side affect)
+IHqlExpression * parseDefinition(const char * ecl, IIdAtom * name, MultiErrorReceiver &errors)
+{
+    Owned<IHqlScope> scope = createScope();
+    HqlDummyLookupContext ctx(&errors);
+    Owned<IFileContents> contents = createFileContentsFromText(ecl, NULL, false, NULL, 0);
+    HqlLookupContext attrCtx(ctx);
+    HqlGram parser(scope, scope, contents, attrCtx, NULL, false, true);
+    parser.setExpectedAttribute(name);
+    parser.setAssociateWarnings(true);
+    parser.getLexer()->set_yyLineNo(1);
+    parser.getLexer()->set_yyColumn(1);
+    ::Release(parser.yyParse(false, false));
+    return scope->lookupSymbol(name, LSFsharedOK|LSFnoreport, ctx);
+}
+
+bool verifySimpifiedDefinition(IHqlExpression *simplifiedDefinition, HqlLookupContext & ctx)
+{
+    MultiErrorReceiver errors;
+    StringBuffer ecl;
+
+    regenerateDefinition(simplifiedDefinition, ecl);
+    OwnedHqlExpr parsed = parseDefinition(ecl, simplifiedDefinition->queryId(), errors);
+    if (!parsed)
+    {
+        ctx.errs->reportError(ERR_INTERNALEXCEPTION, "Failed to parse simplified definition",0,0,0,0);
+        return false;
+    }
+    else
+    {
+        StringBuffer t1, t2;
+        EclIR::getIRText(t1, 0, simplifiedDefinition);
+        EclIR::getIRText(t2, 0, parsed);
+
+        if (!streq(t1, t2))
+        {
+            ctx.errs->reportError(ERR_INTERNALEXCEPTION, "Failed verification of simplified definition",0,0,0,0);
+            return false;
+        }
+    }
+    return true;
+}
+
 
 int testHqlInternals()
 {

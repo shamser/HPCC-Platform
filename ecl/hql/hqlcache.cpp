@@ -42,11 +42,11 @@ public:
     EclCachedDefinition(IEclCachedDefinitionCollection * _collection, IEclSource * _definition)
     : collection(_collection), definition(_definition) {}
 
-    virtual bool isUpToDate(__uint64 optionHash) const override;
+    virtual bool isUpToDate(hash64_t optionHash) const override;
     virtual IEclSource * queryOriginal() const override { return definition; }
 
 protected:
-    virtual bool calcUpToDate(__uint64 optionHash) const;
+    virtual bool calcUpToDate(hash64_t optionHash) const;
 
 protected:
     mutable bool cachedUpToDate = false;
@@ -55,7 +55,7 @@ protected:
     Linked<IEclSource> definition;
 };
 
-bool EclCachedDefinition::isUpToDate(__uint64 optionHash) const
+bool EclCachedDefinition::isUpToDate(hash64_t optionHash) const
 {
     //MORE: Improve thread safety if this object is shared between multiple threads.
     if (!cachedUpToDate)
@@ -78,7 +78,7 @@ bool EclCachedDefinition::isUpToDate(__uint64 optionHash) const
     return upToDate;
 }
 
-bool EclCachedDefinition::calcUpToDate(__uint64 optionHash) const
+bool EclCachedDefinition::calcUpToDate(hash64_t optionHash) const
 {
     if (!definition)
         return false;
@@ -124,7 +124,7 @@ public:
     }
 
 protected:
-    virtual bool calcUpToDate(__uint64 optionHash) const override
+    virtual bool calcUpToDate(hash64_t optionHash) const override
     {
         if (!cacheTree)
             return false;
@@ -138,6 +138,7 @@ protected:
 
 private:
     Linked<IPropertyTree> cacheTree;
+    mutable Owned<IFileContents> simplified;
 };
 
 timestamp_type EclXmlCachedDefinition::getTimeStamp() const
@@ -149,7 +150,15 @@ timestamp_type EclXmlCachedDefinition::getTimeStamp() const
 
 IFileContents * EclXmlCachedDefinition::querySimplifiedEcl() const
 {
-    return nullptr;
+    if (!cacheTree)
+        return 0;
+    if (simplified)
+        return simplified;
+    const char * ecl = cacheTree->queryProp("Simplified");
+    if (!ecl)
+        return 0;
+    simplified.setown(createFileContentsFromText(ecl, NULL, false, NULL, 0));
+    return simplified;
 }
 
 void EclXmlCachedDefinition::queryDependencies(StringArray & values) const
@@ -335,18 +344,18 @@ void convertSelectsToPath(StringBuffer & filename, const char * eclPath)
 
 static IHqlExpression * createSimplifiedDefinition(ITypeInfo * type)
 {
-#if 0 //Testing!
-    try
+    switch (type->getTypeCode())
     {
-        //MORE: For records should use
-        //OwnedHqlExpr actualRecord = getUnadornedRecordOrField(actual->queryRecord());
+    case type_scope: // These may be possible - if the scope is not a forward scope or derived from another scope
+        return nullptr;
+    case type_pattern:
+    case type_rule:
+    case type_token:
+        //Possible, but the default testing code doesn't work
+        return nullptr;
+    case type_int:
         return createNullExpr(type);
     }
-    catch (IException * e)
-    {
-        e->Release();
-    }
-#endif
 
     return nullptr;
 }
@@ -369,17 +378,6 @@ IHqlExpression * createSimplifiedDefinition(IHqlExpression * expr)
     ITypeInfo * type = expr->queryType();
     if (!type)
         return nullptr;
-
-    switch (type->getTypeCode())
-    {
-    case type_scope: // These may be possible - if the scope is not a forward scope or derived from another scope
-        return nullptr;
-    case type_pattern:
-    case type_rule:
-    case type_token:
-        //Possible, but the default testing code doesn't work
-        return nullptr;
-    }
 
     OwnedHqlExpr simple = createSimplifiedDefinition(type);
     if (simple)

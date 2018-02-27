@@ -1013,23 +1013,23 @@ void HqlParseContext::noteBeginMacro(IHqlScope * scope, IIdAtom * name)
 }
 
 
-void HqlParseContext::noteEndAttribute(bool success, bool canCache, bool isMacro, IHqlExpression * simplifiedDefinition)
+void HqlParseContext::noteEndAttribute(bool success)
 {
-    finishMeta(true, success, checkEndMeta(), canCache, isMacro, simplifiedDefinition);
+    finishMeta(true, success, checkEndMeta());
 
     endMetaScope();
 }
 
 void HqlParseContext::noteEndQuery(bool success)
 {
-    finishMeta(false, success, checkEndMeta(), true, false, nullptr);
+    finishMeta(false, success, checkEndMeta());
 
     endMetaScope();
 }
 
 void HqlParseContext::noteEndModule(bool success)
 {
-    finishMeta(true, success, checkEndMeta(), true, false, nullptr);
+    finishMeta(true, success, checkEndMeta());
 
     endMetaScope();
 }
@@ -1075,77 +1075,77 @@ bool HqlParseContext::checkEndMeta()
     return wasGathering;
 }
 
-void HqlParseContext::finishMeta(bool isSeparateFile, bool success, bool generateMeta, bool canCache, bool isMacro, IHqlExpression * simplifiedDefinition)
+void HqlParseContext::createCache(IHqlExpression * simplifiedDefinition, bool isMacro)
+{
+    assertex(simplifiedDefinition);
+
+    StringBuffer fullName;
+    StringBuffer baseFilename;
+
+    getCacheBaseFilename(fullName, baseFilename);
+    if (!baseFilename)
+        return;
+
+    if (!regenerateCache)
+    {
+        Owned<IEclCachedDefinition> cached = cache->getDefinition(fullName);
+        if (cached->isUpToDate(optionHash))
+            return;
+    }
+
+    recursiveCreateDirectoryForFile(baseFilename);
+    StringBuffer filename(baseFilename);
+    filename.append(".cache");
+    OwnedIFile cacheFile = createIFile(filename);
+    {
+        //Theoretically there is a potential for multiple processes to generate this file at the same time
+        //but since the create is unconditional, each process will create an independent file, and
+        //only one self consistent file will remain at the end.  Which survives does not matter.
+        OwnedIFileIO cacheIO = cacheFile->open(IFOcreate);
+        Owned<IIOStream> stream = createIOStream(cacheIO);
+        stream.setown(createBufferedIOStream(stream));
+        writeStringToStream(*stream, "<Cache");
+        VStringBuffer extraText(" hash=\"%" I64F "d\"", (__int64) optionHash);
+        if (isMacro)
+            extraText.append(" isMacro=\"1\"");
+        writeStringToStream(*stream, extraText);
+        writeStringToStream(*stream, ">\n");
+        if (curMeta().dependencies)
+            saveXML(*stream, curMeta().dependencies, 0, XML_Embed|XML_LineBreak);
+
+        writeStringToStream(*stream, "<Simplified>\n");
+        StringBuffer ecl;
+        regenerateDefinition(simplifiedDefinition, ecl);
+
+        if (checkSimpleDef)
+        {
+            ecl.append("\n/* Simplified expression IR:\n");
+            EclIR::getIRText(ecl, 0, simplifiedDefinition);
+            ecl.append("*/\n");
+        }
+
+        encodeXML(ecl, *stream, 0, -1, false);
+        writeStringToStream(*stream, "</Simplified>\n");
+        writeStringToStream(*stream, "</Cache>\n");
+    }
+}
+
+void HqlParseContext::finishMeta(bool isSeparateFile, bool success, bool generateMeta)
 {
     if (metaStack.empty())  // paranoid - could only happen on an internal error
         return;
 
-    StringBuffer baseFilename;
-    bool createCacheEntry = canCache;
-    if (isSeparateFile && !metaOptions.cacheLocation.isEmpty())
-    {
-        assertex(curMeta().dependencies);
-        StringBuffer fullName;
-        const char * module = curMeta().dependencies->queryProp("@module");
-        const char * attr = curMeta().dependencies->queryProp("@name");
-        fullName.append(module);
-        if (!isEmptyString(module) && !isEmptyString(attr))
-            fullName.append(".");
-        fullName.append(attr);
-
-        if (fullName && !hasPrefix(fullName, INTERNAL_LOCAL_MODULE_NAME, true))
-        {
-            baseFilename.append(metaOptions.cacheLocation);
-            addPathSepChar(baseFilename);
-            convertSelectsToPath(baseFilename, fullName);
-            recursiveCreateDirectoryForFile(baseFilename);
-
-            Owned<IEclCachedDefinition> cached = cache->getDefinition(fullName);
-            if (cached->isUpToDate(optionHash))
-                createCacheEntry = false;
-        }
-    }
-
-    if (createCacheEntry && baseFilename)
-    {
-        StringBuffer filename(baseFilename);
-        filename.append(".cache");
-
-        OwnedIFile cacheFile = createIFile(filename);
-        {
-            //Theoretically there is a potential for multiple processes to generate this file at the same time
-            //but since the create is unconditional, each process will create an independent file, and
-            //only one self consistent file will remain at the end.  Which survives does not matter.
-            OwnedIFileIO cacheIO = cacheFile->open(IFOcreate);
-            Owned<IIOStream> stream = createIOStream(cacheIO);
-            stream.setown(createBufferedIOStream(stream));
-            writeStringToStream(*stream, "<Cache");
-            VStringBuffer extraText(" hash=\"%" I64F "u\"", optionHash);
-            if (isMacro)
-                extraText.append(" isMacro=\"1\"");
-            writeStringToStream(*stream, extraText);
-            writeStringToStream(*stream, ">\n");
-            if (curMeta().dependencies)
-                saveXML(*stream, curMeta().dependencies, 0, XML_Embed|XML_LineBreak);
-            if (simplifiedDefinition)
-            {
-                writeStringToStream(*stream, "<Simplified>\n");
-                StringBuffer ecl;
-                regenerateECL(simplifiedDefinition, ecl);
-                encodeXML(ecl, *stream, 0, -1, false);
-                writeStringToStream(*stream, "</Simplified>\n");
-            }
-            writeStringToStream(*stream, "</Cache>\n");
-        }
-    }
-
     if (generateMeta)
     {
         IPropertyTree* tos = curMeta().meta;
-        if (isSeparateFile && !metaOptions.cacheLocation.isEmpty())
+        if (isSeparateFile && hasCacheLocation())
         {
+            StringBuffer fullName;
+            StringBuffer baseFilename;
+            getCacheBaseFilename(fullName, baseFilename);
             if (baseFilename)
             {
+                recursiveCreateDirectoryForFile(baseFilename);
                 StringBuffer filename(baseFilename);
                 if (success)
                     filename.append(".eclmeta");
@@ -1253,6 +1253,25 @@ void HqlParseContext::createDependencyEntry(IHqlScope * parentScope, IIdAtom * i
     metaStack.tos().dependencies = attr;
 }
 
+void HqlParseContext::getCacheBaseFilename(StringBuffer & fullName, StringBuffer & baseFilename)
+{
+    assertex(curMeta().dependencies);
+
+    const char * module = curMeta().dependencies->queryProp("@module");
+    const char * attr = curMeta().dependencies->queryProp("@name");
+    fullName.append(module);
+    if (!isEmptyString(module) && !isEmptyString(attr))
+        fullName.append(".");
+    fullName.append(attr);
+
+    if (fullName && !hasPrefix(fullName, INTERNAL_LOCAL_MODULE_NAME, true))
+    {
+        baseFilename.append(metaOptions.cacheLocation);
+        addPathSepChar(baseFilename);
+        convertSelectsToPath(baseFilename, fullName);
+    }
+
+}
 //---------------------------------------------------------------------------------------------------------------------
 
 
@@ -8758,7 +8777,7 @@ IHqlExpression *CHqlRemoteScope::lookupSymbol(IIdAtom * searchName, unsigned loo
         filename.append(fullName).append('.');
     filename.append(str(searchName));
 
-    IFileContents * contents = ret->queryDefinitionText();
+    Owned<IFileContents> contents = LINK(ret->queryDefinitionText());
     if (!contents || (contents->length() == 0))
     {
         StringBuffer msg("Definition for ");
