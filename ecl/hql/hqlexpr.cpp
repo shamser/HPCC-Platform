@@ -1120,7 +1120,7 @@ void HqlParseContext::createCache(IHqlExpression * simplifiedDefinition, bool is
         if (checkSimpleDef)
         {
             ecl.append("\n/* Simplified expression IR:\n");
-            EclIR::getIRText(ecl, 0, simplifiedDefinition);
+            EclIR::getIRText(ecl, 0, queryLocationIndependent(simplifiedDefinition));
             ecl.append("*/\n");
         }
 
@@ -8789,7 +8789,7 @@ IHqlExpression *CHqlRemoteScope::lookupSymbol(IIdAtom * searchName, unsigned loo
     resolved->defineSymbol(LINK(recursionGuard));
 
     unsigned prevErrors = ctx.numErrors();
-    parseAttribute(this, contents, ctx, searchName);
+    parseAttribute(this, contents, ctx, searchName, filename);
 
     OwnedHqlExpr newSymbol = resolved->lookupSymbol(searchName, LSFsharedOK|lookupFlags, ctx);
     if (ctx.numErrors() != prevErrors)

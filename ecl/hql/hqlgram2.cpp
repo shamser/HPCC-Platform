@@ -12186,7 +12186,7 @@ bool parseForwardModuleMember(HqlGramCtx & _parent, IHqlScope *scope, IHqlExpres
     return (prevErrors == ctx.errs->errCount());
 }
 
-void parseAttribute(IHqlScope * scope, IFileContents * contents, HqlLookupContext & ctx, IIdAtom * name)
+void parseAttribute(IHqlScope * scope, IFileContents * contents, HqlLookupContext & ctx, IIdAtom * name, const char * fullName)
 {
     bool alreadySimplified = false;
     HqlLookupContext attrCtx(ctx);
@@ -12196,7 +12196,7 @@ void parseAttribute(IHqlScope * scope, IFileContents * contents, HqlLookupContex
     if (!ctx.regenerateCache() && ctx.syntaxChecking() && ctx.hasCacheLocation() && !ctx.disableCacheUse())
     {
         HqlParseContext & parseContext = ctx.queryParseContext();
-        Owned<IEclCachedDefinition> cached = parseContext.cache->getDefinition(str(name));
+        Owned<IEclCachedDefinition> cached = parseContext.cache->getDefinition(fullName);
         if (cached->isUpToDate(parseContext.optionHash))
         {
             IFileContents * cachecontents = cached->querySimplifiedEcl();
@@ -12289,11 +12289,12 @@ bool verifySimpifiedDefinition(IHqlExpression *simplifiedDefinition, HqlLookupCo
     else
     {
         StringBuffer t1, t2;
-        EclIR::getIRText(t1, 0, simplifiedDefinition);
-        EclIR::getIRText(t2, 0, parsed);
+        EclIR::getIRText(t1, 0, queryLocationIndependent(simplifiedDefinition));
+        EclIR::getIRText(t2, 0, queryLocationIndependent(parsed));
 
         if (!streq(t1, t2))
         {
+            DBGLOG("simple: %s\n parsed: %s", t1.str(), t2.str());
             ctx.errs->reportError(ERR_INTERNALEXCEPTION, "Failed verification of simplified definition",0,0,0,0);
             return false;
         }
