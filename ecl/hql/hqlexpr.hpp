@@ -647,7 +647,7 @@ enum node_operator : unsigned short {
         no_cluster,
         no_forcenolocal,
         no_allnodes,
-        no_unused6,
+        no_simplified,
         no_matchrow,
         no_sequence,
         no_selfjoin,

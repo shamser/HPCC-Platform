@@ -354,7 +354,7 @@ static IHqlExpression * createSimplifiedDefinition(ITypeInfo * type)
         //Possible, but the default testing code doesn't work
         return nullptr;
     case type_int:
-        return createNullExpr(type);
+        return createValue(no_simplified, LINK(type));
     }
 
     return nullptr;

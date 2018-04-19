@@ -578,7 +578,7 @@ const char * getOperatorIRText(node_operator op)
     EXPAND_CASE(no,cluster);
     EXPAND_CASE(no,forcenolocal);
     EXPAND_CASE(no,allnodes);
-    EXPAND_CASE(no,unused6);
+    EXPAND_CASE(no,simplified);
     EXPAND_CASE(no,matchrow);
     EXPAND_CASE(no,sequence);
     EXPAND_CASE(no,selfjoin);
