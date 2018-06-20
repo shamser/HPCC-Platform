@@ -461,7 +461,7 @@ public:
     void checkInlineDatasetOptions(const attribute & attr);
     void checkLibraryParametersMatch(const attribute & errpos, bool isParametered, const HqlExprArray & activeParameters, IHqlExpression * definition);
     void checkReal(attribute &e1);
-    ITypeInfo *checkStringIndex(attribute & strAttr, attribute & idxAttr);
+    ITypeInfo *getSubstringType(attribute & strAttr, attribute & idxAttr);
     void checkWorkflowScheduling(IHqlExpression * expr, attribute& errpos);
     void checkWorkflowMultiples(IHqlExpression * currentWorkflow, IHqlExpression * newWorkflow, attribute& errpos);
     void checkJoinFlags(const attribute & err, IHqlExpression * joinExpr);

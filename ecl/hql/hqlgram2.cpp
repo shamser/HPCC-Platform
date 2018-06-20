@@ -4219,33 +4219,14 @@ ITypeInfo *HqlGram::checkPromoteIfType(attribute &a1, attribute &a2)
     return type.getClear();
 }
 
-ITypeInfo * HqlGram::checkStringIndex(attribute & strAttr, attribute & idxAttr)
+ITypeInfo * HqlGram::getSubstringType(attribute & strAttr, attribute & idxAttr)
 {
     IHqlExpression * src = strAttr.queryExpr();
     SubStringHelper info(strAttr.queryExpr(), idxAttr.queryExpr());
-    unsigned strSize = getBestLengthEstimate(src);
     unsigned startIndex = info.fixedStart;
     unsigned endIndex = info.fixedEnd;
 
-    if (info.knownStart() && (startIndex < 1 || ((strSize != UNKNOWN_LENGTH) && startIndex > strSize)))
-    {
-        if (startIndex<1)
-            reportWarning(CategoryIndex, ERR_SUBSTR_INVALIDRANGE, idxAttr.pos,"Invalid substring range: start index %d must >= 1", startIndex);
-        else  /* assert: strSize != UNKNOWN_LENGTH */
-            reportWarning(CategoryIndex, ERR_SUBSTR_INVALIDRANGE, idxAttr.pos,"Invalid substring range: index %d out of bound: 1..%d", startIndex, strSize);
-    }
-    else if (info.knownEnd() && (endIndex < 1 || ((strSize != UNKNOWN_LENGTH) && endIndex > strSize)))
-    {
-        if (endIndex < 1)
-            reportWarning(CategoryIndex, ERR_SUBSTR_INVALIDRANGE, idxAttr.pos, "Invalid substring range: end index %d must >= 1", endIndex);
-        else
-            reportWarning(CategoryIndex, ERR_SUBSTR_INVALIDRANGE, idxAttr.pos, "Invalid substring range: index %d out of bound: 1..%d", endIndex, strSize);
-    }
-    else if (info.knownStart() && info.knownEnd() && startIndex > endIndex)
-        reportWarning(CategoryIndex, ERR_SUBSTR_INVALIDRANGE, idxAttr.pos, "Invalid substring range: start index %d > end index %d", startIndex, endIndex);
-
     unsigned resultSize = UNKNOWN_LENGTH;
-//  if (strSize != UNKNOWN_LENGTH)
     {
         if (info.knownStart() && info.knownEnd() && endIndex >= startIndex)
             resultSize = endIndex - startIndex + 1;

@@ -356,6 +356,11 @@ static IHqlExpression * createSimplifiedDefinitionFromType(ITypeInfo * type, boo
     case type_real:
     case type_decimal:
         return createNullExpr(type);
+    case type_string:
+        if (type->getSize()==UNKNOWN_LENGTH)
+            return createValue(no_implicitcast, LINK(type), createNullExpr(type));
+        else
+            return createNullExpr(type);
     case type_int:
         if (implicitConstantType)
         {

@@ -13977,6 +13977,9 @@ public:
             if (callIsActivity(expr))
                 checkEmbedActivity(expr);
             break;
+        case no_substring:
+            checkSubstring(expr);
+            break;
         }
         QuickHqlTransformer::doAnalyse(expr);
     }
@@ -13986,6 +13989,7 @@ protected:
     void checkJoin(IHqlExpression * expr);
     void checkChoosen(IHqlExpression * expr);
     void checkEmbedActivity(IHqlExpression * expr);
+    void checkSubstring(IHqlExpression * expr);
     void reportError(int errNo, const char * format, ...) __attribute__((format(printf, 3, 4)));
     void reportWarning(WarnErrorCategory category, int warnNo, const char * format, ...) __attribute__((format(printf, 4, 5)));
 protected:
@@ -14099,6 +14103,35 @@ void SemanticErrorChecker::checkEmbedActivity(IHqlExpression * call)
         if (value && !value->isConstant())
             reportError(ECODETEXT(HQLERR_AttributeXMustBeConstant), "LOCAL");
     }
+}
+
+void SemanticErrorChecker::checkSubstring(IHqlExpression * expr)
+{
+    assertex(expr->numChildren()==2);
+    IHqlExpression * range = expr->queryChild(1);
+    IHqlExpression * src = expr->queryChild(0);
+    SubStringHelper info(src, range);
+    unsigned strSize = getBestLengthEstimate(src);
+    unsigned startIndex = info.fixedStart;
+    unsigned endIndex = info.fixedEnd;
+
+    if (info.knownStart() && (startIndex < 1 || ((strSize != UNKNOWN_LENGTH) && startIndex > strSize)))
+    {
+        if (startIndex<1)
+            reportWarning(CategoryIndex, ERR_SUBSTR_INVALIDRANGE, "Invalid substring range: start index %d must >= 1", startIndex);
+        else  /* assert: strSize != UNKNOWN_LENGTH */
+            reportWarning(CategoryIndex, ERR_SUBSTR_INVALIDRANGE, "Invalid substring range: index %d out of bound: 1..%d", startIndex, strSize);
+    }
+    else if (info.knownEnd() && (endIndex < 1 || ((strSize != UNKNOWN_LENGTH) && endIndex > strSize)))
+    {
+        if (endIndex < 1)
+            reportWarning(CategoryIndex, ERR_SUBSTR_INVALIDRANGE, "Invalid substring range: end index %d must >= 1", endIndex);
+        else
+            reportWarning(CategoryIndex, ERR_SUBSTR_INVALIDRANGE, "Invalid substring range: index %d out of bound: 1..%d", endIndex, strSize);
+    }
+    else if (info.knownStart() && info.knownEnd() && startIndex > endIndex)
+        reportWarning(CategoryIndex, ERR_SUBSTR_INVALIDRANGE, "Invalid substring range: start index %d > end index %d", startIndex, endIndex);
+
 }
 
 void SemanticErrorChecker::reportError(int errNo, const char * format, ...)

@@ -5801,7 +5801,7 @@ expr
                         {
                             parser->ensureTypeCanBeIndexed($1);
                             // MORE - result type is shorter if expressions are constant, same as input if not
-                            ITypeInfo * subtype = parser->checkStringIndex($1, $3);
+                            ITypeInfo * subtype = parser->getSubstringType($1, $3);
                             $$.setExpr(createValue(no_substring, subtype, $1.getExpr(), $3.getExpr()));
                         }
 */
@@ -5914,7 +5914,7 @@ primexpr1
                             {
                                 parser->ensureTypeCanBeIndexed($1);
                                 // MORE - result type is shorter if expressions are constant, same as input if not
-                                ITypeInfo * subtype = parser->checkStringIndex($1, $3);
+                                ITypeInfo * subtype = parser->getSubstringType($1, $3);
                                 $$.setExpr(createValue(no_substring, subtype, $1.getExpr(), $3.getExpr()), $1);
                             }
                         }
