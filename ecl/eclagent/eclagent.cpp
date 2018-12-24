@@ -3475,6 +3475,7 @@ extern int HTHOR_API eclagent_main(int argc, const char *argv[], StringBuffer * 
                 setPasswordsFromSDS();
             }
             PrintLog("ECLAGENT build %s", BUILD_TAG);
+
             startLogMsgParentReceiver();    
             connectLogMsgManagerToDali();
 
