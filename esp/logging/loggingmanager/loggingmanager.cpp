@@ -116,7 +116,7 @@ bool CLoggingManager::updateLog(IEspContext* espContext, const char* option, con
     {
         status.set("Failed to update log: ");
         e->errorMessage(status);
-        ERRLOG("%s", status.str());
+        OERRLOG("%s", status.str());
         e->Release();
     }
 
@@ -139,7 +139,7 @@ bool CLoggingManager::updateLog(IEspContext* espContext, const char* option, IPr
     {
         status.set("Failed to update log: ");
         e->errorMessage(status);
-        ERRLOG("%s", status.str());
+        OERRLOG("%s", status.str());
         e->Release();
     }
 
@@ -186,7 +186,7 @@ bool CLoggingManager::updateLog(IEspContext* espContext, const char* option, IPr
     {
         status.set("Failed to update log: ");
         e->errorMessage(status);
-        ERRLOG("%s", status.str());
+        OERRLOG("%s", status.str());
         e->Release();
     }
     return bRet;
@@ -280,7 +280,7 @@ bool CLoggingManager::getTransactionSeed(StringBuffer& transactionSeed, StringBu
     {
         e->errorMessage(status);
         status.insert(0, "Failed to get Transaction Seed: ");
-        ERRLOG("%s",status.str());
+        OERRLOG("%s",status.str());
         e->Release();
     }
 
@@ -312,7 +312,7 @@ bool CLoggingManager::getTransactionSeed(IEspGetTransactionSeedRequest& req, IEs
     {
         StringBuffer errorStr;
         e->errorMessage(errorStr);
-        ERRLOG("Failed to get Transaction Seed: %s",errorStr.str());
+        OERRLOG("Failed to get Transaction Seed: %s",errorStr.str());
         resp.setStatusCode(-1);
         resp.setStatusMessage(errorStr.str());
         e->Release();

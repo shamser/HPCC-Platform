@@ -110,7 +110,7 @@ unsigned applyNodes(const char *grpip, ApplyMode mode, unsigned ver, bool isdali
     if (!isdali||!getCluster(grpip,eps)) {
         SocketEndpoint ep(grpip);
         if (ep.isNull()) {
-            ERRLOG("%s is not a group name or ip",grpip);
+            OERRLOG("%s is not a group name or ip",grpip);
             return 0;
         }
         if (ep.port==0)

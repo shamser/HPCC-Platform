@@ -898,7 +898,7 @@ HttpClientErrCode CHttpClient::postRequest(ISoapMessage &req, ISoapMessage& resp
             response.set_status(SOAP_CLIENT_ERROR);
 
         response.set_err(errmsg.str());
-        DBGLOG("SOAP_CLIENT_ERROR: %s", errmsg.str());
+        OERRLOG("SOAP_CLIENT_ERROR: %s", errmsg.str());
         return HttpClientErrCode::Error;
     }
     else if(statusClass == '5')
@@ -909,13 +909,13 @@ HttpClientErrCode CHttpClient::postRequest(ISoapMessage &req, ISoapMessage& resp
         parseSoapFault(httpresponse->getContent(content),errmsg);
 
         response.set_err(errmsg.str());
-        DBGLOG("SOAP_SERVER_ERROR: %s", errmsg.str());
+        OERRLOG("SOAP_SERVER_ERROR: %s", errmsg.str());
 
         return HttpClientErrCode::Error;
     }
     else
     {
-        DBGLOG("%s", errmsg.str());
+        OERRLOG("%s", errmsg.str());
 
         StringBuffer msg;
         if (me->ordinality())
@@ -931,7 +931,7 @@ HttpClientErrCode CHttpClient::postRequest(ISoapMessage &req, ISoapMessage& resp
             }
 
         }
-        DBGLOG("SOAP_RPC_ERROR = %s", msg.str());
+        OERRLOG("SOAP_RPC_ERROR = %s", msg.str());
         response.set_status(SOAP_RPC_ERROR);
         response.set_err(msg);
         return HttpClientErrCode::Error;

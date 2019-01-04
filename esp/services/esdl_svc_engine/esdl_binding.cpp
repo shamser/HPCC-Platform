@@ -217,7 +217,7 @@ void EsdlServiceImpl::configureJavaMethod(const char *method, IPropertyTree &ent
     const char *javaScopedMethod = entry.queryProp("@javamethod");
     if (!javaScopedMethod || !*javaScopedMethod)
     {
-        DBGLOG("ESDL binding - found java target method \"%s\" without java method defined.", method);
+        OWARNLOG("ESDL binding - found java target method \"%s\" without java method defined.", method);
         return;
     }
 
@@ -225,7 +225,7 @@ void EsdlServiceImpl::configureJavaMethod(const char *method, IPropertyTree &ent
     javaNodes.appendList(javaScopedMethod, ".");
     if (javaNodes.length()!=3) //adf: may become more flexible?
     {
-        DBGLOG("ESDL binding - target method \"%s\", configured java method currently must be of the form 'package.class.method', found (%s).", method, javaScopedMethod);
+        OWARNLOG("ESDL binding - target method \"%s\", configured java method currently must be of the form 'package.class.method', found (%s).", method, javaScopedMethod);
         return;
     }
 
@@ -247,7 +247,7 @@ void EsdlServiceImpl::configureJavaMethod(const char *method, IPropertyTree &ent
             else
             {
                 //Log error, but try again next reload, in case the java class is fixed
-                DBGLOG("ESDL binding - failed to load java class %s for target method %s", javaScopedClass.str(), method);
+                OWARNLOG("ESDL binding - failed to load java class %s for target method %s", javaScopedClass.str(), method);
             }
         }
         catch (IException *E)
@@ -264,13 +264,13 @@ void EsdlServiceImpl::configureUrlMethod(const char *method, IPropertyTree &entr
     const char *url = entry.queryProp("@url");
     if (!url || !*url)
     {
-        DBGLOG("ESDL binding - found target method \"%s\" without target url!", method);
+        OWARNLOG("ESDL binding - found target method \"%s\" without target url!", method);
         return;
     }
 
     if (!entry.hasProp("@queryname"))
     {
-        DBGLOG("ESDL binding - found target method \"%s\" without target query!", method);
+        OWARNLOG("ESDL binding - found target method \"%s\" without target query!", method);
         return;
     }
 
@@ -1419,7 +1419,7 @@ bool EsdlBindingImpl::reloadDefinitionsFromCentralStore(IPropertyTree * esdlBndC
 
         if (!loadDefinitions(m_espServiceName.get(), tempESDLDef, esdlBndCng, loadedname, m_esdlStateFilesLocation.str()))
         {
-            DBGLOG("Failed to reload ESDL definitions");
+            OERRLOG("Failed to reload ESDL definitions");
             return false;
         }
 
@@ -1432,7 +1432,7 @@ bool EsdlBindingImpl::reloadDefinitionsFromCentralStore(IPropertyTree * esdlBndC
         return true;
     }
 
-    DBGLOG("Cannot reload definitions because the service implementation is not available");
+    OERRLOG("Cannot reload definitions because the service implementation is not available");
     return false;
 }
 
@@ -1481,12 +1481,12 @@ bool EsdlBindingImpl::reloadBindingFromCentralStore(const char* bindingId)
     {
        StringBuffer msg;
        e->errorMessage(msg);
-       DBGLOG("Exception caught in EsdlBindingImpl::EsdlBindingImpl: %s", msg.str());
+       OERRLOG("Exception caught in EsdlBindingImpl::EsdlBindingImpl: %s", msg.str());
        e->Release();
     }
     catch (...)
     {
-        DBGLOG("Exception caught in EsdlBindingImpl::EsdlBindingImpl: Could Not load Binding %s information from Dali!", bindingId);
+        OERRLOG("Exception caught in EsdlBindingImpl::EsdlBindingImpl: Could Not load Binding %s information from Dali!", bindingId);
     }
     return true;
 }

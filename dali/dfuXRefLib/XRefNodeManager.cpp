@@ -588,7 +588,7 @@ void CXRefNode::progress(const char *text)
 }
 void CXRefNode::error(const char *text)
 {
-    DBGLOG("ERROR: %s\n",text);
+    OERRLOG("ERROR: %s\n",text);
     setStatus(text);
     commit();
 }

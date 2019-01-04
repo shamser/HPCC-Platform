@@ -1141,7 +1141,7 @@ static void filterXmlBySchema(StringBuffer& in, StringBuffer& schema, const char
     else 
     {
         const char* value = tree->queryProp(NULL);
-        DBGLOG("Unknown xml tag ignored: <%s>%s</%s>", name, value?value:"", name);
+        OWARNLOG("Unknown xml tag ignored: <%s>%s</%s>", name, value?value:"", name);
     }
 }
 
@@ -1538,7 +1538,7 @@ int EspHttpBinding::onGetConfig(IEspContext &context, CHttpRequest* request, CHt
         response->send();
         return 0;
     }
-    DBGLOG("Config access denied");
+    OERRLOG("Config access denied");
     return onGetNotFound(context, request, response, NULL);
 }
 
@@ -2734,12 +2734,12 @@ void EspHttpBinding::validateResponse(IEspContext& context, CHttpRequest* reques
         }
     } catch (IException* e) {
         StringBuffer msg;
-        DBGLOG("Unexpected error: parsing XML: %s", e->errorMessage(msg).str());
+        OERRLOG("Unexpected error: parsing XML: %s", e->errorMessage(msg).str());
     }
 
     // schema
     getSchema(xsd,context,request,serviceQName,methodQName,true);
-            
+
     // validation
     if (getEspLogLevel()>LogMax)
         DBGLOG("[VALIDATE] xml: %s\nxsd: %s\nns: %s",xml.str(), xsd.str(), ns.str());
@@ -2797,6 +2797,6 @@ void EspHttpBinding::sortResponse(IEspContext& context, CHttpRequest* request, M
         content.setBuffer(len, result.detach(), true);      
     } catch (IException* e) {
         StringBuffer msg;
-        DBGLOG("Unexpected error: parsing XML: %s", e->errorMessage(msg).str());
+        OERRLOG("Unexpected error: parsing XML: %s", e->errorMessage(msg).str());
     }
 }

@@ -1255,8 +1255,8 @@ static void checksuperfile(const char *lfn,bool fix=false)
     lname.makeFullnameQuery(query, DXB_SuperFile, true);
     Owned<IRemoteConnection> conn = querySDS().connect(query.str(),myProcessSession(),fix?RTM_LOCK_WRITE:0, daliConnectTimeoutMs);
     if (!conn) {
-        ERRLOG("Could not connect to %s",lfn);
-        ERRLOG("Superfile %s FAILED",lname.get());
+        OERRLOG("Could not connect to %s",lfn);
+        OERRLOG("Superfile %s FAILED",lname.get());
         return;
     }
     Owned<IPropertyTree> root = conn->getRoot();
@@ -1272,7 +1272,7 @@ static void checksuperfile(const char *lfn,bool fix=false)
                 break;
             StringBuffer s;
             s.appendf("SuperFile %s: corrupt, subfile file part %d is duplicated",lname.get(),i+1);
-            ERRLOG("%s",s.str());
+            OERRLOG("%s",s.str());
             if (!fix||!doFix()) {
                 ERRLOG("Superfile %s FAILED",lname.get());
                 return;
@@ -1283,9 +1283,9 @@ static void checksuperfile(const char *lfn,bool fix=false)
         if (!sub) {
             StringBuffer s;
             s.appendf("SuperFile %s: corrupt, subfile file part %d cannot be found",lname.get(),i+1);
-            ERRLOG("%s",s.str());
+            OERRLOG("%s",s.str());
             if (!fix||!doFix()) {
-                ERRLOG("Superfile %s FAILED",lname.get());
+                OERRLOG("Superfile %s FAILED",lname.get());
                 return;
             }
             fixed = true;
@@ -1303,9 +1303,9 @@ static void checksuperfile(const char *lfn,bool fix=false)
                 subconn.setown(querySDS().connect(subquery.str(),myProcessSession(),0, daliConnectTimeoutMs));
             }
             if (!subconn) {
-                ERRLOG("SuperFile %s is missing sub-file file %s",lname.get(),subname.str());
+                OERRLOG("SuperFile %s is missing sub-file file %s",lname.get(),subname.str());
                 if (!fix||!doFix()) {
-                    ERRLOG("Superfile %s FAILED",lname.get());
+                    OERRLOG("Superfile %s FAILED",lname.get());
                     return;
                 }
                 root->removeTree(sub);
@@ -1368,7 +1368,7 @@ static void checksuperfile(const char *lfn,bool fix=false)
         if (sub) {
             unsigned pn = sub->getPropInt("@num");
             if (pn>subnum) {
-                ERRLOG("SuperFile %s: corrupt, subfile file part %d spurious",lname.get(),pn);
+                OERRLOG("SuperFile %s: corrupt, subfile file part %d spurious",lname.get(),pn);
                 if (fixstate==0)
                 {
                     if (fix&&doFix())
@@ -1392,11 +1392,11 @@ static void checksuperfile(const char *lfn,bool fix=false)
         if (!isEmptyPTree(sub)&&!sub->queryProp("description")) {
             if (fix) {
                 if (!fixed)
-                    ERRLOG("FIX Empty Superfile %s contains non-empty Attr",lname.get());
+                    OERRLOG("FIX Empty Superfile %s contains non-empty Attr",lname.get());
                 root->removeTree(sub);
             }
             else if (sub->getPropInt64("@recordCount")||sub->getPropInt64("@size"))
-                ERRLOG("FAIL Empty Superfile %s contains non-empty Attr sz=%" I64F "d rc=%" I64F "d",lname.get(),sub->getPropInt64("@recordCount"),sub->getPropInt64("@size"));
+                OERRLOG("FAIL Empty Superfile %s contains non-empty Attr sz=%" I64F "d rc=%" I64F "d",lname.get(),sub->getPropInt64("@recordCount"),sub->getPropInt64("@size"));
 
         }
     }
@@ -1472,8 +1472,8 @@ static void checksubfile(const char *lfn)
         conn.setown(querySDS().connect(query.str(),myProcessSession(),0, daliConnectTimeoutMs));
     }
     if (!conn) {
-        ERRLOG("Could not connect to %s",lfn);
-        ERRLOG("Subfile %s FAILED",lname.get());
+        OERRLOG("Could not connect to %s",lfn);
+        OERRLOG("Subfile %s FAILED",lname.get());
         return;
     }
     Owned<IPropertyTree> root = conn->getRoot();
@@ -1488,14 +1488,14 @@ static void checksubfile(const char *lfn)
         sdlname.makeFullnameQuery(sdquery, DXB_SuperFile, true);
         Owned<IRemoteConnection> sdconn = querySDS().connect(sdquery.str(),myProcessSession(),0, daliConnectTimeoutMs);
         if (!conn) {
-            ERRLOG("SubFile %s has missing owner superfile %s",lname.get(),sdlname.get());
+            OERRLOG("SubFile %s has missing owner superfile %s",lname.get(),sdlname.get());
             ok = false;
         }
         else {
             StringBuffer path;
             IPropertyTree *sub = sdconn->queryRoot()->queryPropTree(path.clear().appendf("SubFile[@name=\"%s\"]",lname.get()).str());
             if (!sub) {
-                ERRLOG("Superfile %s is not linked to %s",sdlname.get(),lname.get());
+                OERRLOG("Superfile %s is not linked to %s",sdlname.get(),lname.get());
                 ok = false;
             }
         }
@@ -1769,7 +1769,7 @@ static void cleanscopes(IUserDescriptor *user)
         dlfn.makeScopeQuery(s.clear(),true);
         Owned<IRemoteConnection> conn = querySDS().connect(s.str(),myProcessSession(),RTM_LOCK_READ, daliConnectTimeoutMs);
         if (!conn)  
-            DBGLOG("Could not connect to '%s' using %s",iter->query(),s.str());
+            OWARNLOG("Could not connect to '%s' using %s",iter->query(),s.str());
         else {
             if (recursiveCheckEmptyScope(*conn->queryRoot())) {
                 toremove.append(iter->query());

@@ -76,7 +76,7 @@ void CEclAgentExecutionServer::start()
     agentName.set(sb);
     if (!agentName.length())
     {
-        ERRLOG("'name' not specified in properties file\n");
+        OERRLOG("'name' not specified in properties file\n");
         throwUnexpected();
     }
     setStatisticsComponentName(SCThthor, agentName, true);
@@ -85,7 +85,7 @@ void CEclAgentExecutionServer::start()
     properties->getProp("@daliServers", daliServers);
     if (!daliServers.length())
     {
-        ERRLOG("'daliServers' not specified in properties file\n");
+        OERRLOG("'daliServers' not specified in properties file\n");
         throwUnexpected();
     }
 
@@ -129,7 +129,7 @@ int CEclAgentExecutionServer::run()
     }
     catch(...)
     {
-        ERRLOG("Terminating unexpectedly");
+        OERRLOG("Terminating unexpectedly");
     }
 
     CSDSServerStatus serverStatus("HThorServer");

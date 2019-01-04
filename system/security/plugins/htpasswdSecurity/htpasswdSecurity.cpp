@@ -156,31 +156,31 @@ public:
 protected:
 
     //ISecManager
-	bool IsPasswordValid(ISecUser& sec_user)
-	{
-		StringBuffer user;
-		user.append(sec_user.getName());
-		if (0 == user.length())
-			throw MakeStringException(-1, "htpasswd User name is NULL");
+    bool IsPasswordValid(ISecUser& sec_user)
+    {
+        StringBuffer user;
+        user.append(sec_user.getName());
+        if (0 == user.length())
+            throw MakeStringException(-1, "htpasswd User name is NULL");
 
         if (sec_user.credentials().getSessionToken() != 0)//Already authenticated it token
-		    return true;
+            return true;
 
-		CriticalBlock block(crit);
-		if (!apr_initialized)
-			initAPR();
-		loadPwds();//reload password file if modified
-		StringBuffer *encPW = userMap.getValue(user.str());
-		if (encPW && encPW->length())
-		{
-			apr_status_t rc = apr_password_validate(sec_user.credentials().getPassword(), encPW->str());
-			if (rc != APR_SUCCESS)
-				DBGLOG("htpasswd authentication for user %s failed - APR RC %d", user.str(), rc );
-			return rc == APR_SUCCESS;
-		}
-		DBGLOG("User %s not in htpasswd file", user.str());
-		return false;
-	}
+        CriticalBlock block(crit);
+        if (!apr_initialized)
+            initAPR();
+        loadPwds();//reload password file if modified
+        StringBuffer *encPW = userMap.getValue(user.str());
+        if (encPW && encPW->length())
+        {
+            apr_status_t rc = apr_password_validate(sec_user.credentials().getPassword(), encPW->str());
+            if (rc != APR_SUCCESS)
+                DBGLOG("htpasswd authentication for user %s failed - APR RC %d", user.str(), rc );
+            return rc == APR_SUCCESS;
+        }
+        DBGLOG("User %s not in htpasswd file", user.str());
+        return false;
+    }
 
     const char * getDescription() override
     {

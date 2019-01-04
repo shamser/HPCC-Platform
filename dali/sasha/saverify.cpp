@@ -89,7 +89,7 @@ static void appendNodeEndpoint(IPropertyTree& node,SocketEndpointArray &eps)
     const char *computer = node.queryProp("@computer");
     CMachineEntryPtr *m = machinemap.getValue(computer);
     if (!m) {
-        ERRLOG("Computer name %s not found",computer);
+        OERRLOG("Computer name %s not found",computer);
         return;
     }
     SocketEndpoint ep = (*m)->ep;

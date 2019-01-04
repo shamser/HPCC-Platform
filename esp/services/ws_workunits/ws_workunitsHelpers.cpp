@@ -3453,7 +3453,7 @@ void CWsWuFileHelper::createProcessLogfile(Owned<IConstWorkUnit>& cwu, WsWuInfo&
         {
             StringBuffer s;
             e->errorMessage(s);
-            DBGLOG("Error accessing Process Log file %s: %s", logSpec.str(), s.str());
+            OERRLOG("Error accessing Process Log file %s: %s", logSpec.str(), s.str());
             writeToFile(fileName.str(), s.length(), s.str());
             e->Release();
         }
@@ -3639,7 +3639,7 @@ void CWsWuFileHelper::createZAPECLQueryArchiveFiles(Owned<IConstWorkUnit>& cwu, 
             Owned<IFile> rFile = createIFile(rfn);
             if (!rFile)
             {
-                DBGLOG("Cannot open %s on %s", ssb.str(), ip.str());
+                ERRLOG("Cannot open %s on %s", ssb.str(), ip.str());
                 continue;
             }
             archiveContents.loadFile(rFile);
@@ -3648,7 +3648,7 @@ void CWsWuFileHelper::createZAPECLQueryArchiveFiles(Owned<IConstWorkUnit>& cwu, 
         {
             StringBuffer s;
             e->errorMessage(s);
-            DBGLOG("Error accessing archive file %s: %s", ssb.str(), s.str());
+            ERRLOG("Error accessing archive file %s: %s", ssb.str(), s.str());
             archiveContents.insert(0, "Error accessing archive file ").appendf("%s: %s\r\n\r\n", ssb.str(), s.str());
             e->Release();
         }

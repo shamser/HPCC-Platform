@@ -1124,7 +1124,7 @@ public:
                 if (grp)
                     n = grp->ordinality();
                 else {
-                    ERRLOG("DFUWU: Logical group %s not found",s.str());
+                    OERRLOG("DFUWU: Logical group %s not found",s.str());
                     return 0;
                 }
                 ClusterPartDiskMapSpec mspec;

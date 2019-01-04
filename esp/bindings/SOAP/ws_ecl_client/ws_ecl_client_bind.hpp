@@ -154,7 +154,7 @@ public:
             while (*sptr && *sptr!='>')
                 sptr++; 
             if (*sptr!='>') {
-                DBGLOG("Parsing soap message error: could not find ending > for Body");
+                WARNLOG("Parsing soap message error: could not find ending > for Body");
                 return;
             }
             sptr++; // skip '>'

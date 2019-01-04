@@ -353,7 +353,7 @@ void calibrate_timing()
                 return;
             }
         }
-        ERRLOG("calibrate_timing failed using RDTSC");
+        IERRLOG("calibrate_timing failed using RDTSC");
         useRDTSC = false;
     }
 #endif
@@ -1870,7 +1870,7 @@ class CExtendedStats  // Disk network and cpu stats
             {
                 if (kbadcnt < 5)
                 {
-                    ERRLOG("klogctl SYSLOG_ACTION_READ_ALL error %d", errno);
+                    IERRLOG("klogctl SYSLOG_ACTION_READ_ALL error %d", errno);
                     kbadcnt++;
                 }
                 else

@@ -2996,7 +2996,7 @@ public:
                 dfCheckRoot("setProtect.1",root,conn);
             }
             else
-                ERRLOG("setProtect - cannot protect %s (no connection in file)",owner?owner:"");
+                IERRLOG("setProtect - cannot protect %s (no connection in file)",owner?owner:"");
         }
     }
 
@@ -3104,7 +3104,7 @@ public:
                 t.setown(addNamedPropTree(root,"SuperOwner","@name",superfile));
         }
         else
-            ERRLOG("linkSuperOwner - cannot link to %s (no connection in file)",superfile);
+            IERRLOG("linkSuperOwner - cannot link to %s (no connection in file)",superfile);
     }
 
     void setAccessed()
@@ -3592,7 +3592,7 @@ public:
 #endif
 
                 if (!cluster.queryGroup(&queryNamedGroupStore())) {
-                    ERRLOG("IDistributedFileDescriptor cannot set cluster for %s",logicalName.get());
+                    IERRLOG("IDistributedFileDescriptor cannot set cluster for %s",logicalName.get());
                 }
                 clusters.append(cluster);
             }
@@ -6565,12 +6565,12 @@ CDistributedFilePart::CDistributedFilePart(CDistributedFile &_parent,unsigned _p
     dirty = false;
     if (pd) {
         if (pd->isMulti())
-            ERRLOG("Multi filenames not supported in Dali DFS Part %d of %s",_part+1,_parent.queryLogicalName());
+            OERRLOG("Multi filenames not supported in Dali DFS Part %d of %s",_part+1,_parent.queryLogicalName());
         overridename.set(pd->queryOverrideName());
         setAttr(*pd->getProperties());
     }
     else
-        ERRLOG("CDistributedFilePart::CDistributedFilePart no IPartDescriptor for part");
+        IERRLOG("CDistributedFilePart::CDistributedFilePart no IPartDescriptor for part");
 }
 
 void CDistributedFilePart::Link(void) const
@@ -6635,7 +6635,7 @@ StringBuffer & CDistributedFilePart::getPartName(StringBuffer &partname)
     const char *mask=parent.queryPartMask();
     if (!mask||!*mask) {
         const char *err ="CDistributedFilePart::getPartName cannot determine part name (no mask)";
-        ERRLOG("%s", err);
+        IERRLOG("%s", err);
         throw MakeStringExceptionDirect(-1, err);
     }
     expandMask(partname,mask,partIndex,parent.numParts());
@@ -9315,7 +9315,7 @@ class CInitGroups
                 CMachineEntryPtr *m = machinemap.getValue(computer);
                 if (!m)
                 {
-                    ERRLOG("Cannot construct %s, computer name %s not found\n", cluster.queryProp("@name"), computer);
+                    OERRLOG("Cannot construct %s, computer name %s not found\n", cluster.queryProp("@name"), computer);
                     return NULL;
                 }
                 ep.set((*m)->ep);
@@ -9326,7 +9326,7 @@ class CInitGroups
             }
             else
             {
-                ERRLOG("Cannot construct %s, missing computer spec on node\n", cluster.queryProp("@name"));
+                OERRLOG("Cannot construct %s, missing computer spec on node\n", cluster.queryProp("@name"));
                 return NULL;
             }
             switch (groupType)

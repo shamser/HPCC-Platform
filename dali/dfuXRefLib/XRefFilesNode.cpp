@@ -103,7 +103,7 @@ static bool checkPartsInCluster(const char *title,const char *clustername, IProp
     Owned<IGroup> group = queryNamedGroupStore().lookup(clustername);
     if (!group)
     {
-        ERRLOG("%s cluster not found",clustername);
+        OERRLOG("%s cluster not found",clustername);
         errstr.appendf("ERROR: %s cluster not found",clustername);
         return false;
     }

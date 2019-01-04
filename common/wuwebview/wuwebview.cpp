@@ -951,7 +951,7 @@ extern WUWEBVIEW_API IWuWebView *createWuWebView(IConstWorkUnit &wu, const char 
     }
     catch (...)
     {
-        DBGLOG("ERROR loading workunit %s shared object.", wu.queryWuid());
+        OERRLOG("ERROR loading workunit %s shared object.", wu.queryWuid());
     }
     return NULL;
 }
@@ -970,7 +970,7 @@ extern WUWEBVIEW_API IWuWebView *createWuWebView(const char *wuid, const char *t
     }
     catch (...)
     {
-        DBGLOG("ERROR loading workunit %s shared object.", wuid);
+        OERRLOG("ERROR loading workunit %s shared object.", wuid);
     }
     return NULL;
 }

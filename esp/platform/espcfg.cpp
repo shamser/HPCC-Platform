@@ -269,7 +269,7 @@ CEspConfig::CEspConfig(IProperties* inputs, IPropertyTree* envpt, IPropertyTree*
 
     if (!m_cfg->getProp("@name", m_process))
     {
-        ERRLOG("EspProcess name not found");
+        OERRLOG("EspProcess name not found");
     }
     else
     {
@@ -565,7 +565,7 @@ void CEspConfig::loadBinding(binding_cfg &xcfg)
 
     if(sit == m_services.end())
     {
-        DBGLOG("Warning: Service %s not found for binding %s", xcfg.service_name.str(), xcfg.name.str());
+        OWARNLOG("Warning: Service %s not found for binding %s", xcfg.service_name.str(), xcfg.name.str());
     }
     else
     {
@@ -607,7 +607,7 @@ void CEspConfig::loadBinding(binding_cfg &xcfg)
                 if (bind)
                     DBGLOG("Load binding %s (type: %s, process: %s) succeeded", xcfg.name.str(), xcfg.type.str(), m_process.str());
                 else
-                    ERRLOG("Failed to load binding %s (type: %s, process: %s)", xcfg.name.str(), xcfg.type.str(), m_process.str());
+                    OERRLOG("Failed to load binding %s (type: %s, process: %s)", xcfg.name.str(), xcfg.type.str(), m_process.str());
                 xcfg.bind.setown(bind);
                 if (serverstatus)
                 {
@@ -885,7 +885,7 @@ void CEspConfig::bindServer(IEspServer &server, IEspContainer &container)
         {
             map<string, protocol_cfg*>::iterator pit = m_protocols.find(pbfg->protocol_name.str());
             if(pit == m_protocols.end())
-                DBGLOG("Protocol %s not found for binding %s", pbfg->protocol_name.str(), pbfg->name.str());
+                OWARNLOG("Protocol %s not found for binding %s", pbfg->protocol_name.str(), pbfg->name.str());
             else
             {
                 Owned<IXslProcessor> xslp=getXslProcessor();
@@ -907,7 +907,7 @@ void CEspConfig::bindServer(IEspServer &server, IEspContainer &container)
         }
         else
         {
-            ERRLOG("Binding %s wasn't loaded correctly", pbfg->name.str());
+            OERRLOG("Binding %s wasn't loaded correctly", pbfg->name.str());
         }
 
         bit++;

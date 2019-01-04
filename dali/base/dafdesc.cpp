@@ -1595,13 +1595,13 @@ public:
         CPartDescriptor &p = *part(idx);
         p.set(idx,filename,pt);
         if (idx>=pending->ordinality())
-            ERRLOG("IFileDescriptor setPart called after cluster finished");
+            IERRLOG("IFileDescriptor setPart called after cluster finished");
         else {
             SocketEndpoint &pep = pending->element(idx);
             if (pep.isNull())
                 pep=ep;
             else
-                ERRLOG("IFileDescriptor setPart called twice for same part");
+                IERRLOG("IFileDescriptor setPart called twice for same part");
         }
     }
 

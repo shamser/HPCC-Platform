@@ -1901,7 +1901,7 @@ bool CWsDfuEx::getUserFilePermission(IEspContext &context, IUserDescriptor* udes
     udesc->getUserName(username);
     if (username.length() < 1)
     {
-        DBGLOG("User Name not defined\n");
+        OWARNLOG("User Name not defined\n");
         return false;
     }
 
@@ -1909,7 +1909,7 @@ bool CWsDfuEx::getUserFilePermission(IEspContext &context, IUserDescriptor* udes
     Owned<ISecUser> user = secmgr->createUser(username);
     if (!user)
     {
-        DBGLOG("User %s not found\n", username.str());
+        OWARNLOG("User %s not found\n", username.str());
         return false;
     }
 
@@ -2461,7 +2461,7 @@ void CWsDfuEx::doGetFileDetails(IEspContext &context, IUserDescriptor *udesc, co
             }
             catch(...)
             {
-                DBGLOG("Failed in retrieving graphs from workunit %s", wuid);
+                OERRLOG("Failed in retrieving graphs from workunit %s", wuid);
             }
         }
     }
@@ -5743,12 +5743,12 @@ int CWsDfuEx::GetIndexData(IEspContext &context, bool bSchemaOnly, const char* i
     }
     catch (IException *e)
     {
-        DBGLOG(e);
+        OERRLOG(e);
         e->Release();
     }
     catch(...)
     {
-        DBGLOG("Unknown Exception - view data file: %s", indexName);
+        OERRLOG("Unknown Exception - view data file: %s", indexName);
     }
 
     Owned<IResultSetFactory> resultSetFactory = getSecResultSetFactory(context.querySecManager(), context.queryUser(), context.queryUserId(), context.queryPassword());

@@ -6374,7 +6374,7 @@ bool CLocalWorkUnit::setDistributedAccessToken(const char * user)
         }
         else
         {
-            ERRLOG("Cannot create workunit Distributed Access Token, digisign failed");
+            OERRLOG("Cannot create workunit Distributed Access Token, digisign failed");
             return false;
         }
     }

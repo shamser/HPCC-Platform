@@ -860,6 +860,15 @@ inline void WARNLOG(char const * format, ...)
     va_end(args);
 }
 
+inline void OWARNLOG(char const * format, ...) __attribute__((format(printf, 1, 2)));
+inline void OWARNLOG(char const * format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    VALOG(MCoperatorWarning, unknownJob, format, args);
+    va_end(args);
+}
+
 inline void PROGLOG(char const * format, ...) __attribute__((format(printf, 1, 2)));
 inline void PROGLOG(char const * format, ...)
 {
@@ -926,6 +935,18 @@ inline void PROGLOG(LogMsgCode code, char const * format, ...)
 inline IException *DBGLOG(IException *except, const char *prefix=NULL)
 {
     LOG(MCdebugInfo, except, prefix);
+    return except;
+}
+
+inline IException *ERRLOG(IException *except, const char *prefix=NULL)
+{
+    LOG(MCuserError, except, prefix);
+    return except;
+}
+
+inline IException *OERRLOG(IException *except, const char *prefix=NULL)
+{
+    LOG(MCoperatorError, except, prefix);
     return except;
 }
 

@@ -356,7 +356,7 @@ struct cDirDesc
             cMisplacedRec *mp = file->misplaced;
             while (mp) {
                 if (mp->eq(drv,pf,node,numnodes)) {
-                    ERRLOG(LOGPFX "Duplicate file with mismatched tail (%d,%d) %s",pf,node,name);
+                    OERRLOG(LOGPFX "Duplicate file with mismatched tail (%d,%d) %s",pf,node,name);
                     return NULL;
                 }
                 mp = mp->next;
@@ -370,7 +370,7 @@ struct cDirDesc
             // NB: still perform setpresent() below, so that later 'orphan' and 'found' scanning can spot the part as orphaned or part of a found file.
         }
         if (file->setpresent(drv,pf)) {
-            ERRLOG(LOGPFX "Duplicate file with mismatched tail (%d) %s",pf,name);
+            OERRLOG(LOGPFX "Duplicate file with mismatched tail (%d) %s",pf,name);
             file = NULL;
         }
         return file;

@@ -220,7 +220,7 @@ class EclccCompileThread : implements IPooledThread, implements IErrorReporter, 
                 }
             }
             else
-                DBGLOG("Unrecognised error: %s", errStr);
+                OERRLOG("Unrecognised error: %s", errStr);
         }
         catch (IException *E)
         {
@@ -676,7 +676,7 @@ public:
             }
             catch (...)
             {
-                DBGLOG("Unknown exception caught in eclccServer::run - restarting");
+                OERRLOG("Unknown exception caught in eclccServer::run - restarting");
                 releaseAtoms();
                 ExitModuleObjects();
                 _exit(2);

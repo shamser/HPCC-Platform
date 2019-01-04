@@ -353,7 +353,7 @@ void CDfsLogicalFileName::expand(IUserDescriptor *user)
         {
             StringBuffer err;
             e->errorMessage(err);
-            ERRLOG("CDfsLogicalFileName::expand %s",err.str());
+            OERRLOG("CDfsLogicalFileName::expand %s",err.str());
             throw;
         }
     }
@@ -2755,7 +2755,7 @@ public:
     ~CDFSredirection()
     {
         if (linked)
-            ERRLOG("CDFSredirection: cDFSredirect leaked(%d)",linked);
+            IERRLOG("CDFSredirection: cDFSredirect leaked(%d)",linked);
         clear();
     }
 
@@ -2875,7 +2875,7 @@ public:
         // *doesn't* reload (but invalidates last load time)
         Owned<IRemoteConnection> conn = querySDS().connect("Files/Redirection", myProcessSession(), RTM_LOCK_WRITE|RTM_CREATE_QUERY, SDS_LOCK_TIMEOUT);
         if (!conn) {
-            ERRLOG("Cannot update Files/Redirection");
+            OERRLOG("Cannot update Files/Redirection");
             return;
         }
         IPropertyTree &root = *conn->queryRoot();

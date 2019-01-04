@@ -2051,7 +2051,7 @@ extern THORHELPER_API IOutputMetaData *getDaliLayoutInfo(IPropertyTree const &pr
     }
     catch (...)
     {
-        DBGLOG("Cannot deserialize file metadata: Unknown error");
+        OERRLOG("Cannot deserialize file metadata: Unknown error");
     }
     return nullptr;
 }

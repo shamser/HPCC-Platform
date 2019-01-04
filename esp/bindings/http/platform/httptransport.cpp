@@ -788,11 +788,11 @@ void CHttpMessage::logMessage(MessageLogFlag messageLogFlag, const char *prefix)
     catch (IException *e)
     {
         StringBuffer msg;
-        ERRLOG("EXCEPTION %s when logging the message: %s", e->errorMessage(msg).str(), m_content.str());
+        OERRLOG("EXCEPTION %s when logging the message: %s", e->errorMessage(msg).str(), m_content.str());
         if (m_content_type.length() > 0)
-            ERRLOG("EXCEPTION %s when logging the message (m_content_type:%s):%s", e->errorMessage(msg).str(), m_content_type.get(), m_content.str());
+            OERRLOG("EXCEPTION %s when logging the message (m_content_type:%s):%s", e->errorMessage(msg).str(), m_content_type.get(), m_content.str());
         else
-            ERRLOG("EXCEPTION %s when logging the message: %s", e->errorMessage(msg).str(), m_content.str());
+            OERRLOG("EXCEPTION %s when logging the message: %s", e->errorMessage(msg).str(), m_content.str());
         e->Release();
     }
     return;
@@ -822,13 +822,13 @@ int CHttpMessage::send()
     catch (IException *e) 
     {
         StringBuffer estr;
-        DBGLOG("In CHttpMessage::send(%d) -- Exception(%d, %s) writing to socket(%d).", __LINE__, e->errorCode(), e->errorMessage(estr).str(), m_socket.OShandle());
+        OERRLOG("In CHttpMessage::send(%d) -- Exception(%d, %s) writing to socket(%d).", __LINE__, e->errorCode(), e->errorMessage(estr).str(), m_socket.OShandle());
         e->Release();
         return -1;
     }
     catch(...)
     {
-        ERRLOG("In CHttpMessage::send(%d) -- Unknown exception writing to socket(%d).", __LINE__, m_socket.OShandle());
+        OERRLOG("In CHttpMessage::send(%d) -- Unknown exception writing to socket(%d).", __LINE__, m_socket.OShandle());
         return -1;
     }
 
@@ -894,13 +894,13 @@ int CHttpMessage::startSend()
     catch (IException *e) 
     {
         StringBuffer estr;
-        DBGLOG("In CHttpMessage::send() -- Exception(%d, %s) writing to socket(%d).", e->errorCode(), e->errorMessage(estr).str(), m_socket.OShandle());
+        OERRLOG("In CHttpMessage::send() -- Exception(%d, %s) writing to socket(%d).", e->errorCode(), e->errorMessage(estr).str(), m_socket.OShandle());
         e->Release();
         return -1;
     }
     catch(...)
     {
-        ERRLOG("In CHttpMessage::send() -- Unknown exception writing to socket(%d).", m_socket.OShandle());
+        OERRLOG("In CHttpMessage::send() -- Unknown exception writing to socket(%d).", m_socket.OShandle());
         return -1;
     }
 
@@ -919,13 +919,13 @@ int CHttpMessage::sendChunk(const char *chunk)
     catch (IException *e) 
     {
         StringBuffer estr;
-        DBGLOG("In CHttpMessage::send() -- Exception(%d, %s) writing to socket(%d).", e->errorCode(), e->errorMessage(estr).str(), m_socket.OShandle());
+        OERRLOG("In CHttpMessage::send() -- Exception(%d, %s) writing to socket(%d).", e->errorCode(), e->errorMessage(estr).str(), m_socket.OShandle());
         e->Release();
         return -1;
     }
     catch(...)
     {
-        ERRLOG("In CHttpMessage::send() -- Unknown exception writing to socket(%d).", m_socket.OShandle());
+        OERRLOG("In CHttpMessage::send() -- Unknown exception writing to socket(%d).", m_socket.OShandle());
         return -1;
     }
 
@@ -945,13 +945,13 @@ int CHttpMessage::sendFinalChunk(const char *chunk)
     catch (IException *e) 
     {
         StringBuffer estr;
-        DBGLOG("In CHttpMessage::send() -- Exception(%d, %s) writing to socket(%d).", e->errorCode(), e->errorMessage(estr).str(), m_socket.OShandle());
+        OERRLOG("In CHttpMessage::send() -- Exception(%d, %s) writing to socket(%d).", e->errorCode(), e->errorMessage(estr).str(), m_socket.OShandle());
         e->Release();
         return -1;
     }
     catch(...)
     {
-        ERRLOG("In CHttpMessage::send() -- Unknown exception writing to socket(%d).", m_socket.OShandle());
+        OERRLOG("In CHttpMessage::send() -- Unknown exception writing to socket(%d).", m_socket.OShandle());
         return -1;
     }
 
@@ -2027,7 +2027,7 @@ int CHttpRequest::readContentToFiles(StringBuffer netAddress, StringBuffer path,
         StringBuffer fileName;
         if (!readUploadFileName(multipart, fileName, fileContent, bytesNotRead))
         {
-            DBGLOG("No file name found for upload");
+            OERRLOG("No file name found for upload");
             break;
         }
 
@@ -2035,13 +2035,13 @@ int CHttpRequest::readContentToFiles(StringBuffer netAddress, StringBuffer path,
         Owned<IFile> file = createUploadFile(netAddress, path, fileName);
         if (!file)
         {
-            DBGLOG("Uploaded file %s cannot be created", fileName.str());
+            OERRLOG("Uploaded file %s cannot be created", fileName.str());
             break;
         }
         Owned<IFileIO> fileio = file->open(IFOcreate);
         if (!fileio)
         {
-            DBGLOG("Uploaded file %s cannot be opened", fileName.str());
+            OERRLOG("Uploaded file %s cannot be opened", fileName.str());
             break;
         }
 
@@ -2055,7 +2055,7 @@ int CHttpRequest::readContentToFiles(StringBuffer netAddress, StringBuffer path,
             {
                 if (fileio->write(writeOffset, fileContent.length(), fileContent.toByteArray()) != fileContent.length())
                 {
-                    DBGLOG("Failed to write Uploaded file %s", fileName.str());
+                    OERRLOG("Failed to write Uploaded file %s", fileName.str());
                     writeError = true;
                     break;
                 }

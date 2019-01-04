@@ -1483,7 +1483,7 @@ public:
             {
                 if (!queryNodeComm().send(msg, sender, replyTag, LONGTIMEOUT))
                 {
-                    ERRLOG("CKJService: Failed to send error response");
+                    OERRLOG("CKJService: Failed to send error response");
                     break;
                 }
             }

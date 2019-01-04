@@ -5803,7 +5803,7 @@ CCovenSDSManager::CCovenSDSManager(ICoven &_coven, IPropertyTree &_config, const
     {
         char cwd[1024];
         if (!GetCurrentDirectory(1024, cwd)) {
-            ERRLOG("CCovenSDSManager: Current directory path too big, setting local path to null");
+            OERRLOG("CCovenSDSManager: Current directory path too big, setting local path to null");
             cwd[0] = 0;
         }
         rfn.setLocalPath(cwd);

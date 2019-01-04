@@ -173,7 +173,7 @@ bool CHttpProtocol::notifySelected(ISocket *sock,unsigned selected, IPersistentH
                     }
                     catch(...)
                     {
-                        ERRLOG("Error starting thread from http thread pool.");
+                        OERRLOG("Error starting thread from http thread pool.");
                         if(accepted.get())
                         {
                             accepted->close();
@@ -454,12 +454,12 @@ bool CHttpThread::onRequest()
         {
             StringBuffer emsg;
             e->errorMessage(emsg);
-            DBGLOG("%s", emsg.str());
+            OERRLOG("%s", emsg.str());
             return false;
         }
         catch(...)
         {
-            DBGLOG("Unknown exception accepting from secure socket");
+            OERRLOG("Unknown exception accepting from secure socket");
             return false;
         }
         ESPLOG(LogMax, "Request from secure socket");
@@ -531,7 +531,7 @@ void CPooledHttpThread::threadmain()
         {
             StringBuffer emsg;
             e->errorMessage(emsg);
-            DBGLOG("%s", emsg.str());
+            OERRLOG("%s", emsg.str());
             return;
         }
         catch(...)

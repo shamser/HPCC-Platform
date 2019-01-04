@@ -2938,7 +2938,7 @@ bool getInterfaceIp(IpAddress &ip,const char *ifname)
             {
                 if (!recursioncheck) {
                     recursioncheck = true;
-                    DBGLOG("Error retrieving interface flags for interface %s", item->ifr_name);
+                    OERRLOG("Error retrieving interface flags for interface %s", item->ifr_name);
                     recursioncheck = false;
                 }
                 continue;

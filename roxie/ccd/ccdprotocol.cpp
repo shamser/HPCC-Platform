@@ -1394,7 +1394,7 @@ public:
         //    logctx.CTXLOG("FAILED: %s", queryText);
         StringBuffer error("EXCEPTION: ");
         E->errorMessage(error);
-        DBGLOG("%s", error.str());
+        OERRLOG("%s", error.str());
         client.checkSendHttpException(httpHelper, E, queryName);
         E->Release();
     }
@@ -1743,7 +1743,7 @@ readAnother:
             if (traceLevel > 0)
             {
                 StringBuffer b;
-                DBGLOG("Error reading query from socket: %s", E->errorMessage(b).str());
+                OERRLOG("Error reading query from socket: %s", E->errorMessage(b).str());
             }
             E->Release();
             client.clear();

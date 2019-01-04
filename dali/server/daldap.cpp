@@ -166,7 +166,7 @@ public:
                 now.setNow();
                 if (now.compare(reqUTCTimestamp) < 0)//timestamp from the future?
                 {
-                    ERRLOG("LDAP: getPermissions(%s) scope=%s user=%s Request digital signature timestamp %s from the future",key?key:"NULL",obj?obj:"NULL",username.str(), requestTimestamp.str());
+                    OERRLOG("LDAP: getPermissions(%s) scope=%s user=%s Request digital signature timestamp %s from the future",key?key:"NULL",obj?obj:"NULL",username.str(), requestTimestamp.str());
                     return SecAccess_None;//deny
                 }
 
@@ -176,7 +176,7 @@ public:
 
                 if (expiry.compare(reqUTCTimestamp) < 0)//timestamp too far in the past?
                 {
-                    ERRLOG("LDAP: getPermissions(%s) scope=%s user=%s Expired request digital signature timestamp %s",key?key:"NULL",obj?obj:"NULL",username.str(), requestTimestamp.str());
+                    OERRLOG("LDAP: getPermissions(%s) scope=%s user=%s Expired request digital signature timestamp %s",key?key:"NULL",obj?obj:"NULL",username.str(), requestTimestamp.str());
                     return SecAccess_None;//deny
                 }
 
@@ -185,7 +185,7 @@ public:
 
                 if (!pDSM->digiVerify(b64Signature, expectedStr))//does the digital signature match what we expect?
                 {
-                    ERRLOG("LDAP: getPermissions(%s) scope=%s user=%s fails digital signature verification",key?key:"NULL",obj?obj:"NULL",username.str());
+                    OERRLOG("LDAP: getPermissions(%s) scope=%s user=%s fails digital signature verification",key?key:"NULL",obj?obj:"NULL",username.str());
                     return SecAccess_None;//deny
                 }
 
@@ -194,7 +194,7 @@ public:
                 user->setAuthenticateStatus(AS_AUTHENTICATED);
             }
             else
-                ERRLOG("LDAP: getPermissions(%s) scope=%s user=%s digital signature support not available",key?key:"NULL",obj?obj:"NULL",username.str());
+                OERRLOG("LDAP: getPermissions(%s) scope=%s user=%s digital signature support not available",key?key:"NULL",obj?obj:"NULL",username.str());
         }
 
         if (!isEmptyString(user->credentials().getPassword()) && !isWorkunitDAToken(user->credentials().getPassword()))
@@ -204,7 +204,7 @@ public:
                 const char * extra = "";
                 if (isEmptyString(reqSignature))
                     extra = " (Password or Dali Signature not provided)";
-                ERRLOG("LDAP: getPermissions(%s) scope=%s user=%s fails LDAP authentication%s",key?key:"NULL",obj?obj:"NULL",username.str(), extra);
+                OERRLOG("LDAP: getPermissions(%s) scope=%s user=%s fails LDAP authentication%s",key?key:"NULL",obj?obj:"NULL",username.str(), extra);
                 return SecAccess_None;//deny
             }
         }
@@ -281,7 +281,7 @@ public:
                 StringBuffer b64Signature(udesc->querySignature());
                 if (!pDSM->digiVerify(b64Signature, username))//digital signature valid?
                 {
-                    ERRLOG("LDAP: enableScopeScans(%s) : Invalid user digital signature", username.str());
+                    OERRLOG("LDAP: enableScopeScans(%s) : Invalid user digital signature", username.str());
                     *err = -1;
                     return false;
                 }

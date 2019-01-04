@@ -601,7 +601,7 @@ public:
                 next++;
                 if (!next) {
                     next++;
-                    ERRLOG("Unique ID overflow!!"); //unlikely to happen in my lifetime
+                    OERRLOG("Unique ID overflow!!"); //unlikely to happen in my lifetime
                 }
                 store->setPropInt("UIDbase",(int)next);
                 updateDataStore();

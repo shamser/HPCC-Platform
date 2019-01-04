@@ -4713,7 +4713,7 @@ JNIEXPORT jclass JNICALL Java_com_HPCCSystems_HpccClassLoader_defineClassForEmbe
         }
     }
     if (!ret)
-        DBGLOG("javaembed: Failed to load class %s", nameChars);
+        ERRLOG("javaembed: Failed to load class %s", nameChars);
     env->ReleaseStringUTFChars(name, nameChars);
     return ret;
 

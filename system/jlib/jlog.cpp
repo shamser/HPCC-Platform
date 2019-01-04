@@ -1024,7 +1024,7 @@ void RollingFileLogMsgHandler::doRollover(bool daily, const char *forceName) con
     if(!handle) 
     {
         handle = getNullHandle();
-        DBGLOG("RollingFileLogMsgHandler::doRollover : could not open log file %s for output", filename.str());
+        OWARNLOG("RollingFileLogMsgHandler::doRollover : could not open log file %s for output", filename.str());
         // actually this is pretty fatal
     }
 }

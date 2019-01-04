@@ -1322,7 +1322,7 @@ static void CheckAllowedProgram(const char *prog,const char *allowed)
         if (WildMatch(head.str(),list.item(i)))
             return;
     }
-    ERRLOG("Unauthorized pipe program(%s)",head.str());
+    OERRLOG("Unauthorized pipe program(%s)",head.str());
     throw MakeStringException(-1,"Unauthorized pipe program(%s)",head.str());
 }
 
@@ -2073,7 +2073,7 @@ public:
             forkthread->join(50); // give a chance to fail
         }
         if (retcode==START_FAILURE) {   
-            DBGLOG("%s: PIPE process '%s' failed to start", title.get()?title.get():"CLinuxPipeProcess", prog.get());
+            OWARNLOG("%s: PIPE process '%s' failed to start", title.get()?title.get():"CLinuxPipeProcess", prog.get());
             forkthread.clear();
             return false;
         }

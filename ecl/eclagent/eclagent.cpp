@@ -215,7 +215,7 @@ public:
                 ++port;
             else
             {
-                DBGLOG("No DEBUG ports currently available in range %d - %d",HTHOR_DEBUG_BASE_PORT, HTHOR_DEBUG_BASE_PORT + HTHOR_DEBUG_PORT_RANGE); // MORE - or has terminated?
+                OWARNLOG("No DEBUG ports currently available in range %d - %d",HTHOR_DEBUG_BASE_PORT, HTHOR_DEBUG_BASE_PORT + HTHOR_DEBUG_PORT_RANGE); // MORE - or has terminated?
                 MilliSleep(5000);
                 port = HTHOR_DEBUG_BASE_PORT;
             }
@@ -349,7 +349,7 @@ public:
                 if (traceLevel > 8)
                 {
                     StringBuffer b;
-                    DBGLOG("No data reading query from socket");
+                    OWARNLOG("No data reading query from socket");
                 }
                 client.clear();
                 return;
@@ -361,7 +361,7 @@ public:
             if (traceLevel > 0)
             {
                 StringBuffer b;
-                DBGLOG("Error reading query from socket: %s", E->errorMessage(b).str());
+                OERRLOG("Error reading query from socket: %s", E->errorMessage(b).str());
             }
             E->Release();
             client.clear();
@@ -387,7 +387,7 @@ public:
             catch (IException *E)
             {
                 StringBuffer s;
-                DBGLOG("ERROR: Invalid XML received from %s:%s", E->errorMessage(s).str(), rawText.str());
+                OERRLOG("ERROR: Invalid XML received from %s:%s", E->errorMessage(s).str(), rawText.str());
                 throw;
             }
             bool isRequest = false;
@@ -422,7 +422,7 @@ public:
 
     virtual bool stop() override
     {
-        ERRLOG("CHThorDebugSocketWorker stopped with queries active");
+        OERRLOG("CHThorDebugSocketWorker stopped with queries active");
         return true; 
     }
 
