@@ -12365,7 +12365,7 @@ extern WORKUNIT_API WUState getWorkUnitState(const char* state)
     return (WUState) getEnum(state, states);
 }
 
-const LogMsgCategory MCschedconn = MCprogress(1000);    // Category used to inform about schedule synchronization
+const LogMsgCategory MCschedconn = MCuserProgress(1000);    // Category used to inform about schedule synchronization
 
 class CWorkflowScheduleConnection : implements IWorkflowScheduleConnection, public CInterface
 {
