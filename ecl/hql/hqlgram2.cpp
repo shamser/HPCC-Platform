@@ -1013,7 +1013,11 @@ IHqlExpression * HqlGram::processEmbedBody(const attribute & errpos, IHqlExpress
         }
     }
     else
+    {
         result.setown(createValue(no_embedbody, LINK(type), args));
+        if (attribs && attribs->queryName()==activityAtom)
+            reportError(ERR_EMBEDERROR, errpos, "Embedded activities only support dataset return types");
+    }
 
     result.setown(createLocationAnnotation(result.getClear(), errpos.pos));
 
