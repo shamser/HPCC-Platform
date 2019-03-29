@@ -791,8 +791,8 @@ public:
         return (fileBool)ret;
     }
 
-    IFileIO * open(IFOmode mode,IFEflags extraFlags=IFEnone);
-    IFileIO * openShared(IFOmode mode,IFSHmode shmode,IFEflags extraFlags=IFEnone);
+    IFileIO * open(IFOmode mode,IFEflags extraFlags=IFEnone,unsigned timeout=0);
+    IFileIO * openShared(IFOmode mode,IFSHmode shmode,IFEflags extraFlags=IFEnone,unsigned timeout=0);
     IFileAsyncIO * openAsync(IFOmode mode) { return NULL; } // not supported
 
     const char * queryFilename()
@@ -1536,7 +1536,7 @@ public:
 };
 
 
-IFileIO *CRemoteFile::openShared(IFOmode mode,IFSHmode shmode,IFEflags extraFlags)
+IFileIO *CRemoteFile::openShared(IFOmode mode,IFSHmode shmode,IFEflags extraFlags,unsigned timeout)
 {
     // 0x0, 0x8, 0x10 and 0x20 are only share modes supported in this assert
     // currently only 0x0 (IFSHnone), 0x8 (IFSHread) and 0x10 (IFSHfull) are used so this could be 0xffffffe7
@@ -1560,9 +1560,9 @@ IFileIO *CRemoteFile::openShared(IFOmode mode,IFSHmode shmode,IFEflags extraFlag
     return NULL;
 }
 
-IFileIO * CRemoteFile::open(IFOmode mode,IFEflags extraFlags)
+IFileIO * CRemoteFile::open(IFOmode mode,IFEflags extraFlags,unsigned timeout)
 {
-    return openShared(mode,(IFSHmode)(flags&(IFSHread|IFSHfull)),extraFlags);
+    return openShared(mode,(IFSHmode)(flags&(IFSHread|IFSHfull)),extraFlags,timeout);
 }
 
 //---------------------------------------------------------------------------

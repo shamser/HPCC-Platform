@@ -680,10 +680,10 @@ HANDLE CFile::openHandle(IFOmode mode, IFSHmode sharemode, bool async, int stdh)
     return handle;
 }
 
-IFileIO * CFile::open(IFOmode mode,IFEflags extraFlags)
+IFileIO * CFile::open(IFOmode mode,IFEflags extraFlags,unsigned timeout)
 {
     // we may want mode dependant defaults later 
-    return openShared(mode,(IFSHmode)(flags&(IFSHfull|IFSHread)),extraFlags);
+    return openShared(mode,(IFSHmode)(flags&(IFSHfull|IFSHread)),extraFlags,timeout);
 }
 
 
@@ -1730,7 +1730,7 @@ public:
 
 };
 
-IFileIO * CFile::openShared(IFOmode mode,IFSHmode share,IFEflags extraFlags)
+IFileIO * CFile::openShared(IFOmode mode,IFSHmode share,IFEflags extraFlags, unsigned timeout)
 {
     int stdh = stdIoHandle(filename);
     HANDLE handle = openHandle(mode,share,false, stdh);

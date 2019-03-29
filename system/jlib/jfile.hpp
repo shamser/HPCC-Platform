@@ -88,9 +88,9 @@ interface IFile :extends IInterface
     virtual fileBool isDirectory() = 0;
     virtual fileBool isFile() = 0;
     virtual fileBool isReadOnly() = 0;
-    virtual IFileIO * open(IFOmode mode,IFEflags extraFlags=IFEnone) = 0;
+    virtual IFileIO * open(IFOmode mode,IFEflags extraFlags=IFEnone,unsigned timeout=0) = 0;
     virtual IFileAsyncIO * openAsync(IFOmode mode) = 0;
-    virtual IFileIO * openShared(IFOmode mode,IFSHmode shmode,IFEflags extraFlags=IFEnone) = 0;
+    virtual IFileIO * openShared(IFOmode mode,IFSHmode shmode,IFEflags extraFlags=IFEnone,unsigned timeout=0) = 0;
     virtual const char * queryFilename() = 0;
     virtual bool remove() = 0;
     virtual void rename(const char *newTail) = 0;       // tail only preferred but can have full path if exactly matches existing dir

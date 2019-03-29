@@ -43,9 +43,9 @@ public:
     virtual fileBool isDirectory();
     virtual fileBool isFile();
     virtual fileBool isReadOnly();
-    virtual IFileIO * open(IFOmode mode, IFEflags extraFlags=IFEnone);
+    virtual IFileIO * open(IFOmode mode, IFEflags extraFlags=IFEnone, unsigned timeout=0);
     virtual IFileAsyncIO * openAsync(IFOmode mode);
-    virtual IFileIO * openShared(IFOmode mode,IFSHmode shmode,IFEflags extraFlags=IFEnone);
+    virtual IFileIO * openShared(IFOmode mode,IFSHmode shmode,IFEflags extraFlags=IFEnone, unsigned timeout=0);
     virtual const char * queryFilename();
     virtual bool remove();
     virtual void rename(const char *newTail);

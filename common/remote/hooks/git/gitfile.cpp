@@ -180,7 +180,7 @@ public:
             return notFound;
         return foundYes;
     }
-    virtual IFileIO * open(IFOmode mode, IFEflags extraFlags=IFEnone)
+    virtual IFileIO * open(IFOmode mode, IFEflags extraFlags=IFEnone, unsigned timeout=0)
     {
         assertex(mode==IFOread && isExisting);
         return new GitRepositoryFileIO(gitDirectory, revision, relFileName);
@@ -189,7 +189,7 @@ public:
     {
         UNIMPLEMENTED;
     }
-    virtual IFileIO * openShared(IFOmode mode, IFSHmode shmode, IFEflags extraFlags=IFEnone)
+    virtual IFileIO * openShared(IFOmode mode, IFSHmode shmode, IFEflags extraFlags=IFEnone, unsigned timeout=0)
     {
         assertex(mode==IFOread && isExisting);
         return new GitRepositoryFileIO(gitDirectory, revision, relFileName);
