@@ -524,7 +524,7 @@ void WsWuInfo::getHelpers(IEspECLWorkunit &info, unsigned long flags)
         Owned <IConstWUQuery> query = cw->getQuery();
         if(!query)
         {
-            OERRLOG("Cannot get Query for this workunit.");
+            IERRLOG("Cannot get Query for this workunit.");
             info.setHelpersDesc("Cannot get Query for this workunit.");
         }
         else
@@ -1125,7 +1125,7 @@ unsigned WsWuInfo::getWorkunitThorLogInfo(IArrayOf<IEspECLHelpFile>& helpers, IE
                 const char* ppStr = strstr(pStr, "/thormaster.");
                 if (!ppStr)
                 {
-                    OWARNLOG("Invalid thorlog entry in workunit xml: %s", logName.str());
+                    IWARNLOG("Invalid thorlog entry in workunit xml: %s", logName.str());
                     continue;
                 }
 
@@ -1196,7 +1196,7 @@ unsigned WsWuInfo::getWorkunitThorLogInfo(IArrayOf<IEspECLHelpFile>& helpers, IE
                 const char* ppStr = strstr(pStr, logDir.str());
                 if (!ppStr)
                 {
-                    OWARNLOG("Invalid thorlog entry in workunit xml: %s", val.str());
+                    IWARNLOG("Invalid thorlog entry in workunit xml: %s", val.str());
                     continue;
                 }
 
@@ -1206,7 +1206,7 @@ unsigned WsWuInfo::getWorkunitThorLogInfo(IArrayOf<IEspECLHelpFile>& helpers, IE
                 ppStr = strchr(pProcessName + 1, sep);
                 if (!ppStr)
                 {
-                    OWARNLOG("Invalid thorlog entry in workunit xml: %s", val.str());
+                    IWARNLOG("Invalid thorlog entry in workunit xml: %s", val.str());
                     continue;
                 }
                 processName.setLength(ppStr - pProcessName - 1);
@@ -3079,7 +3079,7 @@ int WUSchedule::run()
         }
         else
         {
-            IWARNLOG("Detached from DALI, WSWorkuinits schedule interrupted");
+            OWARNLOG("Detached from DALI, WSWorkunits schedule interrupted");
             waitTimeMillies = (unsigned)-1;
         }
 
@@ -3506,7 +3506,7 @@ void CWsWuFileHelper::createThorSlaveLogfile(Owned<IConstWorkUnit>& cwu, WsWuInf
             const char* ppStr = strstr(pStr, "/thormaster.");
             if (!ppStr)
             {
-                OWARNLOG("Invalid thorlog entry in workunit xml: %s", logName.str());
+                IWARNLOG("Invalid thorlog entry in workunit xml: %s", logName.str());
                 continue;
             }
             ppStr += 12;

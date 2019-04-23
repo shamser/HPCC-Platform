@@ -2441,7 +2441,7 @@ void CWsDfuEx::doGetFileDetails(IEspContext &context, IUserDescriptor *udesc, co
             }
             catch(...)
             {
-                OERRLOG("Failed in retrieving graphs from workunit %s", wuid);
+                IERRLOG("Failed in retrieving graphs from workunit %s", wuid);
             }
         }
     }

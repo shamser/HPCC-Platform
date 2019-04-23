@@ -561,7 +561,7 @@ CWsSMCTargetCluster* CActivityInfo::findWUClusterInfo(const char* wuid, bool isO
     catch (IException *e)
     {//Exception may be thrown when the openWorkUnit() is called inside the CWUWrapper
         StringBuffer msg;
-        OWARNLOG("Failed to open workunit %s: %s", wuid, e->errorMessage(msg).str());
+        IWARNLOG("Failed to open workunit %s: %s", wuid, e->errorMessage(msg).str());
         e->Release();
         return NULL;
     }

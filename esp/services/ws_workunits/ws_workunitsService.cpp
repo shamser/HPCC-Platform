@@ -121,7 +121,7 @@ bool doAction(IEspContext& context, StringArray& wuids, CECLWUActions action, IP
         const char* wuid = wuidStr.trim().str();
         if (isEmpty(wuid))
         {
-            OWARNLOG("Empty Workunit ID");
+            UWARNLOG("Empty Workunit ID");
             continue;
         }
 
@@ -5353,7 +5353,7 @@ bool CWsWorkunitsEx::onWUEclDefinitionAction(IEspContext &context, IEspWUEclDefi
         {
             StringBuffer eclDefinitionName = eclDefinitions.item(i);
             if (eclDefinitionName.trim().isEmpty())
-                IWARNLOG("Empty ECL Definition name in WUEclDefinitionAction request");
+                UWARNLOG("Empty ECL Definition name in WUEclDefinitionAction request");
             else if (action == CEclDefinitionActions_SyntaxCheck)
                 checkEclDefinitionSyntax(context, target.str(), eclDefinitionName.str(), msToWait, results);
             else if (action == CEclDefinitionActions_Deploy)

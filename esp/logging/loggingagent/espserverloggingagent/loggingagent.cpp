@@ -320,7 +320,7 @@ bool CESPServerLoggingAgent::updateLog(IEspUpdateLogRequestWrap& req, IEspUpdate
     {//retry will be in update log queue.
         StringBuffer errorStr, errorMessage;
         errorMessage.append("Failed to update log: error code ").append(e->errorCode()).append(", error message ").append(e->errorMessage(errorStr));
-        IERRLOG("%s", errorMessage.str());
+        OERRLOG("%s", errorMessage.str());
         resp.setStatusCode(-1);
         resp.setStatusMessage(errorMessage.str());
         e->Release();

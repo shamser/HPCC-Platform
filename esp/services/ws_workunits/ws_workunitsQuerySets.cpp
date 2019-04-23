@@ -1059,7 +1059,7 @@ void retrieveQuerysetDetailsFromAlias(IEspContext &context, IPropertyTree *regis
     Owned<IPropertyTreeIterator> regAliases = registry->getElements(xpath.str());
     if (!regAliases->first())
     {
-        OWARNLOG("Alias %s not found", name);
+        UWARNLOG("Alias %s not found", name);
         return;
     }
 
@@ -1074,7 +1074,7 @@ void retrieveQuerysetDetailsFromAlias(IEspContext &context, IPropertyTree *regis
         IPropertyTree *query = registry->queryPropTree(xpath);
         if (!query)
         {
-            OWARNLOG("No matching Query %s found for Alias %s", a->getId(), name);
+            UWARNLOG("No matching Query %s found for Alias %s", a->getId(), name);
             return;
         }
 
@@ -1095,7 +1095,7 @@ void retrieveQuerysetDetailsFromQuery(IEspContext &context, IPropertyTree *regis
     Owned<IPropertyTreeIterator> regQueries = registry->getElements(xpath.str());
     if (!regQueries->first())
     {
-        OWARNLOG("No matching Query %s found for %s", value, type);
+        UWARNLOG("No matching Query %s found for %s", value, type);
         return;
     }
 
@@ -1350,7 +1350,7 @@ void CWsWorkunitsEx::checkAndSetClusterQueryState(IEspContext &context, const ch
         Owned<IPropertyTree> queriesOnCluster = getQueriesOnCluster(cluster, querySetId, checkAllNodes);
         if (!queriesOnCluster)
         {
-            OWARNLOG("getQueriesOnCluster() returns NULL for cluster<%s> and querySetId<%s>", cluster, querySetId);
+            IWARNLOG("getQueriesOnCluster() returns NULL for cluster<%s> and querySetId<%s>", cluster, querySetId);
             return;
         }
 
