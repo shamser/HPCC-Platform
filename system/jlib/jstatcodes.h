@@ -251,4 +251,5 @@ enum StatisticKind
 };
 constexpr StatisticKind operator |(StatisticKind l, StatisticKind r) { return (StatisticKind)((unsigned)l | (unsigned)r); }
 
+typedef __int64 stat_t;
 #endif
