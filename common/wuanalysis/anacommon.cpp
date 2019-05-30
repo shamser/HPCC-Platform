@@ -45,3 +45,11 @@ void PerformanceIssue::set(stat_type _cost, const char * msg, ...)
     va_end(args);
 }
 
+void PerformanceIssue::createException(IWUException *we) const
+{
+    we->setSeverity(SeverityInformation);
+    we->setScope(scope);
+    we->setPriority((unsigned int) statUnits2msecs(cost));
+    we->setExceptionMessage(comment);
+    we->setExceptionSource("Workunit Analyser");
+}

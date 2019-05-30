@@ -93,6 +93,7 @@ protected:
     void collateWorkunitStats(IConstWorkUnit * workunit, const WuScopeFilter & filter);
     void printWarnings();
     WuScope * selectFullScope(const char * scope);
+    void writeResultsToWorkunit(IConstWorkUnit * wu);
 
 protected:
     CIArrayOf<AActivityRule> rules;
@@ -331,7 +332,8 @@ void WorkunitAnalyser::analyse(IConstWorkUnit * wu)
     root.connectActivities();
     // root.trace();
     root.applyRules(*this);
-    printWarnings();
+    //printWarnings();
+    writeResultsToWorkunit(wu);
 }
 
 void WorkunitAnalyser::collateWorkunitStats(IConstWorkUnit * workunit, const WuScopeFilter & filter)
@@ -360,6 +362,19 @@ void WorkunitAnalyser::printWarnings()
 
     ForEachItemIn(i, issues)
         issues.item(i).print();
+}
+
+void WorkunitAnalyser::writeResultsToWorkunit(IConstWorkUnit * wu)
+{
+    if (issues.ordinality()==0)
+        return;
+    WorkunitUpdate w(&wu->lock());
+
+    ForEachItemIn(i, issues)
+    {
+        Owned<IWUException> we = w->createException();
+        issues.item(i).createException(we);
+    }
 }
 
 WuScope * WorkunitAnalyser::selectFullScope(const char * scope)

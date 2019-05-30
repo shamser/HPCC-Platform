@@ -32,6 +32,7 @@ public:
     int compareCost(const PerformanceIssue & other) const;
 
     void print() const;
+    void createException(IWUException *we) const;
     void set(stat_type _cost, const char * msg, ...) __attribute__((format(printf, 3, 4)));
     void setScope(const char *_scope) { scope.set(scope); };
     stat_type getCost() const          { return cost; }
