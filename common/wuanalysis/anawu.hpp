@@ -52,6 +52,6 @@ interface IWuActivity : public IWuScope
     }
 };
 
-void WUANALYSIS_API analyseWorkunit(IConstWorkUnit * wu);
+void WUANALYSIS_API analyseWorkunit(IConstWorkUnit * wu, bool writeResultsToWorkunit=true, bool printResults=false);
 
 #endif

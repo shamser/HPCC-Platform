@@ -199,7 +199,7 @@ static void process(IConstWorkUnit &w, IProperties *globals, const StringArray &
     }
     else if (stricmp(action, "analyse")==0)
     {
-        analyseWorkunit(&w);
+        analyseWorkunit(&w, false, true);
     }
     else if (stricmp(action, "dump")==0)
     {

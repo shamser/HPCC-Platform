@@ -19,6 +19,7 @@
 #define ANACOMMON_HPP
 
 #include "jliball.hpp"
+#include "workunit.hpp"
 
 #ifdef WUANALYSIS_EXPORTS
     #define WUANALYSIS_API DECL_EXPORT

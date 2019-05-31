@@ -88,12 +88,12 @@ public:
 
     void check(const char * scope, IWuActivity & activity);
     void analyse(IConstWorkUnit * wu);
+    void writeResultsToWorkunit(IConstWorkUnit * wu);
+    void printWarnings();
 
 protected:
     void collateWorkunitStats(IConstWorkUnit * workunit, const WuScopeFilter & filter);
-    void printWarnings();
     WuScope * selectFullScope(const char * scope);
-    void writeResultsToWorkunit(IConstWorkUnit * wu);
 
 protected:
     CIArrayOf<AActivityRule> rules;
@@ -332,7 +332,6 @@ void WorkunitAnalyser::analyse(IConstWorkUnit * wu)
     root.connectActivities();
     // root.trace();
     root.applyRules(*this);
-    //printWarnings();
     writeResultsToWorkunit(wu);
 }
 
@@ -368,8 +367,8 @@ void WorkunitAnalyser::writeResultsToWorkunit(IConstWorkUnit * wu)
 {
     if (issues.ordinality()==0)
         return;
-    WorkunitUpdate w(&wu->lock());
 
+    WorkunitUpdate w(&wu->lock());
     ForEachItemIn(i, issues)
     {
         Owned<IWUException> we = w->createException();
@@ -397,10 +396,14 @@ WuScope * WorkunitAnalyser::selectFullScope(const char * scope)
 
 //---------------------------------------------------------------------------------------------------------------------
 
-void analyseWorkunit(IConstWorkUnit * wu)
+void analyseWorkunit(IConstWorkUnit * wu, bool writeResultsToWorkunit, bool printResults)
 {
     WuAnalyseOptions options;
     options.skewThreshold = statSkewPercent(10);
     WorkunitAnalyser analyser(options);
     analyser.analyse(wu);
+    if (writeResultsToWorkunit)
+        analyser.writeResultsToWorkunit(wu);
+    if (printResults)
+        analyser.printWarnings();
 }
