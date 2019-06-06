@@ -91,7 +91,6 @@ public:
 
 protected:
     void collateWorkunitStats(IConstWorkUnit * workunit, const WuScopeFilter & filter);
-    void limitResultsPerScope();
     void printWarnings();
     WuScope * selectFullScope(const char * scope);
 
@@ -164,9 +163,6 @@ void WuScope::connectActivities()
 
         if (cur.queryScopeType() == SSTedge)
         {
-            const char * tmp = attrs->queryProp("@IdSource");
-            if (tmp)
-                WuScope * match = scopes.find(tmp);
             WuScope * source = cur.querySource();
             WuScope * sink = cur.queryTarget();
             if (source)
@@ -300,33 +296,29 @@ WorkunitAnalyser::WorkunitAnalyser(WuAnalyseOptions & _options) : root("", nullp
 
 void WorkunitAnalyser::check(const char * scope, IWuActivity & activity)
 {
-    if (activity.queryThorActivityKind()!=TAKhashdistribute)
-    {
-        if (activity.getStatRaw(StTimeLocalExecute, StMaxX) < options.minInterestingTime)
-            return;
-    }
+    if (activity.getStatRaw(StTimeLocalExecute, StMaxX) < options.minInterestingTime)
+        return;
 
-    Owned<PerformanceIssue> issue;
+    Owned<PerformanceIssue> highestCostIssue;
     ForEachItemIn(i, rules)
     {
         if (rules.item(i).isCandidate(activity))
         {
-            if (!issue)
-                issue.setown(new PerformanceIssue);
+            Owned<PerformanceIssue> issue (new PerformanceIssue);
             if (rules.item(i).check(*issue, activity, options))
             {
                 if (issue->getCost() >= options.minCost)
                 {
-                    issue->setScope(scope);
-                    issues.append(*issue.getClear());
-                    break;
-                }
-                else
-                {
-                    issue.clear();
+                    if (!highestCostIssue || highestCostIssue->getCost() < issue->getCost())
+                        highestCostIssue.setown(issue.getClear());
                 }
             }
         }
+    }
+    if (highestCostIssue)
+    {
+        highestCostIssue->setScope(scope);
+        issues.append(*highestCostIssue.getClear());
     }
 }
 
@@ -339,7 +331,6 @@ void WorkunitAnalyser::analyse(IConstWorkUnit * wu)
     root.connectActivities();
     // root.trace();
     root.applyRules(*this);
-    limitResultsPerScope();
     printWarnings();
 }
 
@@ -359,35 +350,6 @@ void WorkunitAnalyser::collateWorkunitStats(IConstWorkUnit * workunit, const WuS
         catch (IException * e)
         {
             e->Release();
-        }
-    }
-}
-
-// Only keep highest cost result per scope
-void WorkunitAnalyser::limitResultsPerScope()
-{
-    issues.sort(compareIssuesScopeOrder);
-
-    int prevIssue = 0;
-    int ordinality = issues.ordinality();
-    int indx = 1;
-    while (indx < ordinality)
-    {
-        if (issues.item(indx).compareScope(issues.item(prevIssue))==0)   // Same scope so remove one
-        {
-            if (issues.item(indx).compareCost(issues.item(prevIssue))<0) // remove the lower cost of the 2 issues
-            {
-                prevIssue = indx;
-                issues.remove(indx-1);
-            }
-            else
-                 issues.remove(indx);
-            ordinality--;
-        }
-        else
-        {
-            prevIssue = indx;
-            ++indx;
         }
     }
 }

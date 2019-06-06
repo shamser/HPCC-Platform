@@ -47,19 +47,19 @@ public:
         IWuEdge * outputEdge = activity.queryOutput(0);
         if (!outputEdge)
             return false;
-
         stat_t rowsAvg = outputEdge->getStatRaw(StNumRowsProcessed, StAvgX);
         if (rowsAvg < rowsThreshold)
             return false;
         stat_t rowsMaxSkew = outputEdge->getStatRaw(StNumRowsProcessed, StSkewMax);
         if (rowsMaxSkew > options.skewThreshold)
         {
-            // Use upstream activity time to calculate approximate cost
+            // Use downstream activity time to calculate approximate cost
             IWuActivity * targetActivity = outputEdge->queryTarget();
             assertex(targetActivity);
             stat_t timeMaxLocalExecute = targetActivity->getStatRaw(StTimeLocalExecute, StMaxX);
-            stat_t timeMinLocalExecute = targetActivity->getStatRaw(StTimeLocalExecute, StMinX);
-            __uint64 cost = (timeMaxLocalExecute - timeMinLocalExecute) / (rowsMaxSkew / 10000);
+            stat_t timeAvgLocalExecute = targetActivity->getStatRaw(StTimeLocalExecute, StAvgX);
+            // Consider ways to improve this cost calculation further
+            __uint64 cost = timeMaxLocalExecute - timeAvgLocalExecute;
 
             IWuEdge * inputEdge = activity.queryInput(0);
             if (inputEdge && (inputEdge->getStatRaw(StNumRowsProcessed, StSkewMax) < rowsMaxSkew))

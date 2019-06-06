@@ -30,7 +30,6 @@ class PerformanceIssue : public CInterface
 {
 public:
     int compareCost(const PerformanceIssue & other) const;
-    int compareScope(const PerformanceIssue & other) const;
 
     void print() const;
     void set(__uint64 _cost, const char * msg, ...);
@@ -44,6 +43,5 @@ private:
 };
 
 extern int compareIssuesCostOrder(CInterface * const * _l, CInterface * const * _r);
-extern int compareIssuesScopeOrder(CInterface * const * _l, CInterface * const * _r);
 
 #endif

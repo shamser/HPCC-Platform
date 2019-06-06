@@ -23,24 +23,12 @@ int compareIssuesCostOrder(CInterface * const * _l, CInterface * const * _r)
     return l->compareCost(*r);
 }
 
-int compareIssuesScopeOrder(CInterface * const * _l, CInterface * const * _r)
-{
-    const PerformanceIssue * l = static_cast<const PerformanceIssue *>(*_l);
-    const PerformanceIssue * r = static_cast<const PerformanceIssue *>(*_r);
-    return l->compareScope(*r);
-}
-
 int PerformanceIssue::compareCost(const PerformanceIssue & other) const
 {
     if (cost == other.cost)
         return 0;
     else
         return cost > other.cost ? -1 : +1;
-}
-
-int PerformanceIssue::compareScope(const PerformanceIssue & other) const
-{
-    return strcmp(scope, other.scope);
 }
 
 void PerformanceIssue::print() const
