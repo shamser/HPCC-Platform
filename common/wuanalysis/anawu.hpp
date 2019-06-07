@@ -24,7 +24,7 @@
 
 interface IWuScope
 {
-    virtual stat_t getStatRaw(StatisticKind kind, StatisticKind variant = StKindNone) const = 0;
+    virtual stat_type getStatRaw(StatisticKind kind, StatisticKind variant = StKindNone) const = 0;
     virtual unsigned getAttr(WuAttr kind) const = 0;
     virtual void getAttr(StringBuffer & result, WuAttr kind) const = 0;
 };

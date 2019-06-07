@@ -36,7 +36,7 @@ void PerformanceIssue::print() const
     printf("[%" I64F "dms] %s: %s\n", statUnits2msecs(cost), scope.str(), comment.str());
 }
 
-void PerformanceIssue::set(__uint64 _cost, const char * msg, ...)
+void PerformanceIssue::set(stat_type _cost, const char * msg, ...)
 {
     cost = _cost;
     va_list args;

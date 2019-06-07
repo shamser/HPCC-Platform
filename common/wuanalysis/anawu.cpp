@@ -57,7 +57,7 @@ public:
     void setInput(unsigned i, WuScope * scope);  // Save i'th target in inputs
     void setOutput(unsigned i, WuScope * scope); // Save i'th source in output
 
-    virtual stat_t getStatRaw(StatisticKind kind, StatisticKind variant = StKindNone) const;
+    virtual stat_type getStatRaw(StatisticKind kind, StatisticKind variant = StKindNone) const;
     virtual unsigned getAttr(WuAttr kind) const;
     virtual void getAttr(StringBuffer & result, WuAttr kind) const;
 
@@ -215,7 +215,7 @@ WuScope * WuScope::queryTarget()
     return parent->select(target);
 }
 
-stat_t WuScope::getStatRaw(StatisticKind kind, StatisticKind variant) const
+stat_type WuScope::getStatRaw(StatisticKind kind, StatisticKind variant) const
 {
     StringBuffer name;
     name.append('@').append(queryStatisticName(kind | variant));

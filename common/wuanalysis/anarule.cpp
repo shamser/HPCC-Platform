@@ -47,19 +47,19 @@ public:
         IWuEdge * outputEdge = activity.queryOutput(0);
         if (!outputEdge)
             return false;
-        stat_t rowsAvg = outputEdge->getStatRaw(StNumRowsProcessed, StAvgX);
+        stat_type rowsAvg = outputEdge->getStatRaw(StNumRowsProcessed, StAvgX);
         if (rowsAvg < rowsThreshold)
             return false;
-        stat_t rowsMaxSkew = outputEdge->getStatRaw(StNumRowsProcessed, StSkewMax);
+        stat_type rowsMaxSkew = outputEdge->getStatRaw(StNumRowsProcessed, StSkewMax);
         if (rowsMaxSkew > options.skewThreshold)
         {
             // Use downstream activity time to calculate approximate cost
             IWuActivity * targetActivity = outputEdge->queryTarget();
             assertex(targetActivity);
-            stat_t timeMaxLocalExecute = targetActivity->getStatRaw(StTimeLocalExecute, StMaxX);
-            stat_t timeAvgLocalExecute = targetActivity->getStatRaw(StTimeLocalExecute, StAvgX);
+            stat_type timeMaxLocalExecute = targetActivity->getStatRaw(StTimeLocalExecute, StMaxX);
+            stat_type timeAvgLocalExecute = targetActivity->getStatRaw(StTimeLocalExecute, StAvgX);
             // Consider ways to improve this cost calculation further
-            __uint64 cost = timeMaxLocalExecute - timeAvgLocalExecute;
+            stat_type cost = timeMaxLocalExecute - timeAvgLocalExecute;
 
             IWuEdge * inputEdge = activity.queryInput(0);
             if (inputEdge && (inputEdge->getStatRaw(StNumRowsProcessed, StSkewMax) < rowsMaxSkew))
@@ -72,7 +72,7 @@ public:
     }
 
 protected:
-    static const stat_t rowsThreshold = 100;                // avg rows per node.
+    static const stat_type rowsThreshold = 100;                // avg rows per node.
 };
 
 void gatherRules(CIArrayOf<AActivityRule> & rules)

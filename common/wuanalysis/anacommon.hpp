@@ -32,13 +32,13 @@ public:
     int compareCost(const PerformanceIssue & other) const;
 
     void print() const;
-    void set(__uint64 _cost, const char * msg, ...);
+    void set(stat_type _cost, const char * msg, ...) __attribute__((format(printf, 3, 4)));
     void setScope(const char *_scope) { scope.set(scope); };
-    __uint64 getCost() const          { return cost; }
+    stat_type getCost() const          { return cost; }
 
 private:
     StringAttr scope;
-    __uint64 cost = 0;      // number of nanoseconds lost as a result.
+    stat_type cost = 0;      // number of nanoseconds lost as a result.
     StringBuffer comment;
 };
 
