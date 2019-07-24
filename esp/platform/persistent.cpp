@@ -54,7 +54,7 @@ using StringIntMap = MapStringTo<int, int>;
 class CPersistentHandler : implements IPersistentHandler, implements ISocketSelectNotify, public Thread
 {
 private:
-    static const int MAX_INFLIGHT_TIME = 1800;
+     const int MAX_INFLIGHT_TIME = 1800;
     int m_maxIdleTime = DEFAULT_MAX_PERSISTENT_IDLE_TIME;
     int m_maxReqs = DEFAULT_MAX_PERSISTENT_REQUESTS;
     Owned<ISocketSelectHandler> m_selectHandler;
@@ -281,7 +281,8 @@ public:
             }
             for (auto s:socks2)
             {
-                PERSILOG(PersistentLogLevel::PLogMin, "PERSISTENT: Socket %d has been in flight for %d seconds, remove it", s->OShandle(), MAX_INFLIGHT_TIME);
+                //PERSILOG(PersistentLogLevel::PLogMin, "PERSISTENT: Socket %d has been in flight for %d seconds, remove it", s->OShandle(), MAX_INFLIGHT_TIME);
+                DBGLOG("PERSISTENT: Socket %d has been in flight for %d seconds, remove it", s->OShandle(), MAX_INFLIGHT_TIME);
                 remove(s);
             }
         }

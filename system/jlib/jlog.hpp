@@ -852,13 +852,19 @@ inline void VALOG(const LogMsgCategory & cat, const LogMsgJobInfo & job, LogMsgC
 #define STRLOG(category, job, expr) LOGMSGREPORTER->report(category, job, #expr"='%s'", expr)
 #define TOSTRLOG(category, job, prefix, func) { if (!REJECTLOG(category)) { StringBuffer buff; func(buff); LOGMSGREPORTER->report(category, job, prefix"'%s'", buff.str()); } }
 
-inline void DBGLOG(char const * format, ...) __attribute__((format(printf, 1, 2)));
-inline void DBGLOG(char const * format, ...)
+inline void DBGLOG2(char const * format, ...) __attribute__((format(printf, 1, 2)));
+inline void DBGLOG2(char const * format, ...)
 {
     va_list args;
     va_start(args, format);
     VALOG(MCdebugInfo, unknownJob, format, args);
     va_end(args);
+}
+
+template <typename... Fargs>
+void DBGLOG(char const *format, Fargs&& ... fargs)
+{
+	DBGLOG(format, std::forward<Fargs>(fargs)...);
 }
 
 inline void DISLOG(char const * format, ...) __attribute__((format(printf, 1, 2)));
@@ -949,13 +955,19 @@ inline void PROGLOG(const char * format, ...)
     va_end(args);
 }
 
-inline void DBGLOG(LogMsgCode code, char const * format, ...) __attribute__((format(printf, 2, 3)));
-inline void DBGLOG(LogMsgCode code, char const * format, ...)
+//inline void DBGLOG2(LogMsgCode code, char const * format, ...) __attribute__((format(printf, 2, 3)));
+inline void DBGLOG2(LogMsgCode code, char const * format, ...)
 {
     va_list args;
     va_start(args, format);
     VALOG(MCdebugInfo, unknownJob, code, format, args);
     va_end(args);
+}
+
+template <typename... Fargs>
+void DBGLOG(LogMsgCode code, const char * format, Fargs&& ... fargs)
+{
+	DBGLOG2(code, format, std::forward<Fargs>(fargs)...);
 }
 
 inline void DISLOG(LogMsgCode code, char const * format, ...) __attribute__((format(printf, 2, 3)));
