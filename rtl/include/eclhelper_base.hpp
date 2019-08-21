@@ -494,6 +494,7 @@ class ECLRTL_API CThorKeyedJoinArg : public CThorArgOf<IHThorKeyedJoinArg>
     virtual size32_t transform(ARowBuilder & rowBuilder, const void * _joinFields, const void * _origRow, unsigned __int64 keyedFpos, unsigned counter) override;
 //Denormalize group:
     virtual size32_t transform(ARowBuilder & rowBuilder, const void * _joinFields, const void * _origRow, unsigned _numRows, const void * * _rows) override;
+    virtual bool queryIsCodeSigned() override;
 };
 
 typedef CThorKeyedJoinArg CThorKeyedDenormalizeArg;
@@ -610,6 +611,7 @@ class ECLRTL_API CThorFetchArg : public CThorArgOf<IHThorFetchArg>
     virtual size32_t extractJoinFields(ARowBuilder & rowBuilder, const void * _right) override;
     virtual bool extractAllJoinFields() override;
     virtual IOutputMetaData * queryExtractedSize() override;
+    virtual bool queryIsCodeSigned() override;
 };
 
 class ECLRTL_API CThorWorkUnitWriteArg : public CThorSinkArgOf<IHThorWorkUnitWriteArg>
@@ -745,6 +747,7 @@ class ECLRTL_API CThorCsvFetchArg: public CThorArgOf<IHThorCsvFetchArg>
     virtual size32_t extractJoinFields(ARowBuilder & rowBuilder, const void * _right) override;
     virtual bool extractAllJoinFields() override;
     virtual IOutputMetaData * queryExtractedSize() override;
+    virtual bool queryIsCodeSigned() override;
 };
 
 //-- Xml --
@@ -878,6 +881,7 @@ class ECLRTL_API CThorIndexReadArg : public CThorArgOf<IHThorIndexReadArg>
 
     virtual size32_t transformOnLimitExceeded(ARowBuilder & rowBuilder) override;
     virtual size32_t transformOnKeyedLimitExceeded(ARowBuilder & rowBuilder) override;
+    virtual bool queryIsCodeSigned() override;
 
 public:
     IThorIndexCallback * fpp;
@@ -910,6 +914,7 @@ class ECLRTL_API CThorIndexNormalizeArg : public CThorArgOf<IHThorIndexNormalize
 
     virtual size32_t transformOnLimitExceeded(ARowBuilder & rowBuilder) override;
     virtual size32_t transformOnKeyedLimitExceeded(ARowBuilder & rowBuilder) override;
+    virtual bool queryIsCodeSigned() override;
 
 public:
     IThorIndexCallback * fpp;
@@ -927,7 +932,7 @@ class ECLRTL_API CThorIndexAggregateArg : public CThorArgOf<IHThorIndexAggregate
     virtual IHThorSteppedSourceExtra *querySteppingExtra() override;
     virtual size32_t mergeAggregate(ARowBuilder & rowBuilder, const void * src) override;
     virtual void processRows(ARowBuilder & rowBuilder, size32_t srcLen, const void * src) override;
-
+    virtual bool queryIsCodeSigned() override;
 public:
     IThorIndexCallback * fpp;
 };
@@ -952,6 +957,7 @@ class ECLRTL_API CThorIndexCountArg : public CThorArgOf<IHThorIndexCountArg>
     virtual size32_t numValid(const void * src) override;
     virtual size32_t numValid(size32_t srcLen, const void * _src) override;
     virtual unsigned __int64 getChooseNLimit() override;
+    virtual bool queryIsCodeSigned() override;
 
 public:
     IThorIndexCallback * fpp;
@@ -973,6 +979,7 @@ class ECLRTL_API CThorIndexGroupAggregateArg : public CThorArgOf<IHThorIndexGrou
     virtual size32_t processCountGrouping(ARowBuilder & rowBuilder, unsigned __int64 count) override;
     virtual size32_t mergeAggregate(ARowBuilder & rowBuilder, const void * src) override;
     virtual void processRows(size32_t srcLen, const void * src, IHThorGroupAggregateCallback * callback) override;
+    virtual bool queryIsCodeSigned() override;
 
 public:
     IThorIndexCallback * fpp;
@@ -1006,6 +1013,7 @@ class ECLRTL_API CThorDiskReadArg : public CThorArgOf<IHThorDiskReadArg>
 
     virtual size32_t transformOnLimitExceeded(ARowBuilder & rowBuilder) override;
     virtual size32_t transformOnKeyedLimitExceeded(ARowBuilder & rowBuilder) override;
+    virtual bool queryIsCodeSigned() override;
 
 public:
     IThorDiskCallback * fpp;
@@ -1030,6 +1038,7 @@ class ECLRTL_API CThorDiskNormalizeArg : public CThorArgOf<IHThorDiskNormalizeAr
 
     virtual size32_t transformOnLimitExceeded(ARowBuilder & rowBuilder) override;
     virtual size32_t transformOnKeyedLimitExceeded(ARowBuilder & rowBuilder) override;
+    virtual bool queryIsCodeSigned() override;
 
 public:
     IThorDiskCallback * fpp;
@@ -1045,6 +1054,7 @@ class ECLRTL_API CThorDiskAggregateArg : public CThorArgOf<IHThorDiskAggregateAr
     virtual bool hasMatchFilter() override;
     virtual void getEncryptKey(size32_t & keyLen, void * & key) override;
     virtual size32_t mergeAggregate(ARowBuilder & rowBuilder, const void * src) override;
+    virtual bool queryIsCodeSigned() override;
 
 public:
     IThorDiskCallback * fpp;
@@ -1067,6 +1077,7 @@ class ECLRTL_API CThorDiskCountArg : public CThorArgOf<IHThorDiskCountArg>
     virtual bool hasFilter() override;
     virtual size32_t numValid(const void * src) override;
     virtual unsigned __int64 getChooseNLimit() override;
+    virtual bool queryIsCodeSigned() override;
 
 public:
     IThorDiskCallback * fpp;
@@ -1086,6 +1097,7 @@ class ECLRTL_API CThorDiskGroupAggregateArg : public CThorArgOf<IHThorDiskGroupA
     virtual size32_t initialiseCountGrouping(ARowBuilder & rowBuilder, const void * src) override;
     virtual size32_t processCountGrouping(ARowBuilder & rowBuilder, unsigned __int64 count) override;
     virtual size32_t mergeAggregate(ARowBuilder & rowBuilder, const void * src) override;
+    virtual bool queryIsCodeSigned() override;
 
 public:
     IThorDiskCallback * fpp;
@@ -1105,6 +1117,7 @@ class ECLRTL_API CThorCsvReadArg: public CThorArgOf<IHThorCsvReadArg>
     virtual bool canMatch(const void * row) override;
     virtual bool hasMatchFilter() override;
     virtual void getEncryptKey(size32_t & keyLen, void * & key) override;
+    virtual bool queryIsCodeSigned() override;
 public:
     IThorDiskCallback * fpp;
 };
@@ -1123,6 +1136,7 @@ class ECLRTL_API CThorXmlReadArg: public CThorArgOf<IHThorXmlReadArg>
     virtual bool canMatch(const void * row) override;
     virtual bool hasMatchFilter() override;
     virtual void getEncryptKey(size32_t & keyLen, void * & key) override;
+    virtual bool queryIsCodeSigned() override;
 public:
     IThorDiskCallback * fpp;
 };

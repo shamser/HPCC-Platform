@@ -2065,6 +2065,13 @@ ABoundActivity * SourceBuilder::buildActivity(BuildCtx & ctx, IHqlExpression * e
         buildCanMatch(expr);
         buildFlagsMember(expr);
 
+        if (tableExpr && !isSpill)
+        {
+            const bool isSigned = tableExpr->hasAttribute(_signed_Atom);
+            { // SATODO: override only when true;
+                translator.doBuildBoolFunction(instance->classctx, "queryIsCodeSigned", isSigned);
+            }
+        }
         if (tableExpr && (activityKind < TAKchildread || activityKind > TAKchildthroughnormalize))
         {
             switch (activityKind)

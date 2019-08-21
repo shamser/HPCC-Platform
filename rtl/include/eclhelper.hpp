@@ -1816,6 +1816,7 @@ struct IHThorKeyedJoinBaseArg : public IHThorArg
 struct IHThorKeyedJoinArg : public IHThorKeyedJoinBaseArg, public IHThorFetchContext
 {
     COMMON_NEWTHOR_FUNCTIONS
+    virtual bool queryIsCodeSigned() = 0;
 };
 
 struct IHThorJoinArg : public IHThorJoinBaseArg
@@ -1869,6 +1870,7 @@ struct IHThorFetchBaseArg : public IHThorArg, public IHThorFetchContext
     virtual size32_t extractJoinFields(ARowBuilder & rowBuilder, const void * _right) = 0;
     virtual bool extractAllJoinFields() = 0;
     virtual IOutputMetaData * queryExtractedSize() = 0;
+    virtual bool queryIsCodeSigned() = 0;
 };
 
 struct IHThorBinFetchExtra : public IInterface
@@ -2382,6 +2384,7 @@ struct IHThorIndexReadBaseArg : extends IHThorCompoundBaseArg
     inline bool hasSegmentMonitors()                        { return (getFlags() & TIRnofilter) == 0; }
     inline bool hasNewSegmentMonitors()                     { return (getFlags() & TIRnewfilters) != 0; }
     virtual IHThorSteppedSourceExtra *querySteppingExtra() = 0;
+    virtual bool queryIsCodeSigned() = 0;
 };
 
 struct IHThorDiskReadBaseArg : extends IHThorCompoundBaseArg
@@ -2396,6 +2399,7 @@ struct IHThorDiskReadBaseArg : extends IHThorCompoundBaseArg
     virtual void setCallback(IThorDiskCallback * callback) = 0;
 
     inline bool hasSegmentMonitors()                        { return (getFlags() & TDRkeyed) != 0; }
+    virtual bool queryIsCodeSigned() = 0;
 };
 
 

@@ -187,7 +187,6 @@ unsigned CThorSpillArg::getExpiryDays() { return 0; }
 void CThorSpillArg::getUpdateCRCs(unsigned & eclCRC, unsigned __int64 & totalCRC) { }
 void CThorSpillArg::getEncryptKey(size32_t & keyLen, void * & key) { keyLen = 0; key = 0; }
 const char * CThorSpillArg::getCluster(unsigned idx) { return NULL; }
-
 //CThorRollupArg
 
 unsigned CThorRollupArg::getFlags() { return 0; }
@@ -385,6 +384,7 @@ size32_t CThorKeyedJoinArg::onFailTransform(ARowBuilder & rowBuilder, const void
 size32_t CThorKeyedJoinArg::transform(ARowBuilder & rowBuilder, const void * _joinFields, const void * _origRow, unsigned __int64 keyedFpos, unsigned counter) { return 0; }
 //Denormalize group:
 size32_t CThorKeyedJoinArg::transform(ARowBuilder & rowBuilder, const void * _joinFields, const void * _origRow, unsigned _numRows, const void * * _rows) { return 0; }
+bool CThorKeyedJoinArg::queryIsCodeSigned() { return false; }
 
 
 //CThorJoinArg
@@ -546,6 +546,7 @@ void CThorFetchArg::onLimitExceeded()         { }
 size32_t CThorFetchArg::extractJoinFields(ARowBuilder & rowBuilder, const void * _right) { return 0; }
 bool CThorFetchArg::extractAllJoinFields()    { return false; }
 IOutputMetaData * CThorFetchArg::queryExtractedSize() { return NULL; }
+bool CThorFetchArg::queryIsCodeSigned() { return false; }
 
 unsigned CThorCsvFetchArg::getFetchFlags() { return 0; }
 unsigned CThorCsvFetchArg::getDiskFormatCrc() { return 0; }
@@ -556,6 +557,7 @@ void CThorCsvFetchArg::onLimitExceeded()         { }
 size32_t CThorCsvFetchArg::extractJoinFields(ARowBuilder & rowBuilder, const void * _right) { return 0; }
 bool CThorCsvFetchArg::extractAllJoinFields()    { return false; }
 IOutputMetaData * CThorCsvFetchArg::queryExtractedSize() { return NULL; }
+bool CThorCsvFetchArg::queryIsCodeSigned() { return false; }
 
 //CThorXmlFetchArg
 
@@ -672,6 +674,7 @@ size32_t CThorIndexReadArg::unfilteredTransform(ARowBuilder & rowBuilder, const 
 
 size32_t CThorIndexReadArg::transformOnLimitExceeded(ARowBuilder & rowBuilder) { return 0; }
 size32_t CThorIndexReadArg::transformOnKeyedLimitExceeded(ARowBuilder & rowBuilder) { return 0; }
+bool CThorIndexReadArg::queryIsCodeSigned() { return false; }
 
 //CThorSteppedIndexReadArg
 
@@ -700,6 +703,7 @@ void CThorIndexNormalizeArg::onKeyedLimitExceeded()                     { }
 
 size32_t CThorIndexNormalizeArg::transformOnLimitExceeded(ARowBuilder & rowBuilder) { return 0; }
 size32_t CThorIndexNormalizeArg::transformOnKeyedLimitExceeded(ARowBuilder & rowBuilder) { return 0; }
+bool CThorIndexNormalizeArg::queryIsCodeSigned() { return false; }
 
 //CThorIndexAggregateArg
 
@@ -713,6 +717,7 @@ bool CThorIndexAggregateArg::hasMatchFilter()                           { return
 IHThorSteppedSourceExtra * CThorIndexAggregateArg::querySteppingExtra()  { return nullptr; }
 size32_t CThorIndexAggregateArg::mergeAggregate(ARowBuilder & rowBuilder, const void * src) { rtlFailUnexpected(); return 0; }
 void CThorIndexAggregateArg::processRows(ARowBuilder & rowBuilder, size32_t srcLen, const void * src) { rtlFailUnexpected(); }
+bool CThorIndexAggregateArg::queryIsCodeSigned() { return false; }
 
 //CThorIndexCountArg
 
@@ -736,6 +741,7 @@ size32_t CThorIndexCountArg::numValid(size32_t srcLen, const void * _src)
 bool CThorIndexCountArg::hasFilter()                                                { return false; }       // also true if denormalized(!)
 size32_t CThorIndexCountArg::numValid(const void * src)                             { return 1; }           //NB: Can be > 1 if source is normlized
 unsigned __int64 CThorIndexCountArg::getChooseNLimit()                              { return (unsigned __int64) -1; }
+bool CThorIndexCountArg::queryIsCodeSigned() { return false; }
 
 //CThorIndexGroupAggregateArg
 
@@ -753,6 +759,7 @@ size32_t CThorIndexGroupAggregateArg::initialiseCountGrouping(ARowBuilder & rowB
 size32_t CThorIndexGroupAggregateArg::processCountGrouping(ARowBuilder & rowBuilder, unsigned __int64 count) { rtlFailUnexpected(); return 0; }
 size32_t CThorIndexGroupAggregateArg::mergeAggregate(ARowBuilder & rowBuilder, const void * src) { rtlFailUnexpected(); return 0; }
 void CThorIndexGroupAggregateArg::processRows(size32_t srcLen, const void * src, IHThorGroupAggregateCallback * callback) { rtlFailUnexpected(); }
+bool CThorIndexGroupAggregateArg::queryIsCodeSigned() { return false; }
 
 
 //CThorDiskReadArg
@@ -784,6 +791,7 @@ size32_t CThorDiskReadArg::transform(ARowBuilder & rowBuilder, const void * src)
 size32_t CThorDiskReadArg::unfilteredTransform(ARowBuilder & rowBuilder, const void * src) { return 0; }
 size32_t CThorDiskReadArg::transformOnLimitExceeded(ARowBuilder & rowBuilder) { return 0; }
 size32_t CThorDiskReadArg::transformOnKeyedLimitExceeded(ARowBuilder & rowBuilder) { return 0; }
+bool CThorDiskReadArg::queryIsCodeSigned() { return false; }
 
 //CThorDiskNormalizeArg
 
@@ -801,6 +809,7 @@ unsigned __int64 CThorDiskNormalizeArg::getKeyedLimit()                { return 
 void CThorDiskNormalizeArg::onKeyedLimitExceeded()                     { }
 size32_t CThorDiskNormalizeArg::transformOnLimitExceeded(ARowBuilder & rowBuilder) { return 0; }
 size32_t CThorDiskNormalizeArg::transformOnKeyedLimitExceeded(ARowBuilder & rowBuilder) { return 0; }
+bool CThorDiskNormalizeArg::queryIsCodeSigned() { return false; }
 
 //CThorDiskAggregateArg
 
@@ -812,6 +821,7 @@ bool CThorDiskAggregateArg::canMatch(const void * row)                 { return 
 bool CThorDiskAggregateArg::hasMatchFilter()                           { return false; }
 void CThorDiskAggregateArg::getEncryptKey(size32_t & keyLen, void * & key) { keyLen = 0; key = 0; }
 size32_t CThorDiskAggregateArg::mergeAggregate(ARowBuilder & rowBuilder, const void * src) { rtlFailUnexpected(); return 0; }
+bool CThorDiskAggregateArg::queryIsCodeSigned() { return false; }
 
 //CThorDiskCountArg
 
@@ -830,6 +840,7 @@ void CThorDiskCountArg::onKeyedLimitExceeded() { }
 bool CThorDiskCountArg::hasFilter()                                                { return false; }       // also true if denormalized(!)
 size32_t CThorDiskCountArg::numValid(const void * src)                             { return 1; }           //NB: Can be > 1 if source is normlized
 unsigned __int64 CThorDiskCountArg::getChooseNLimit()                              { return (unsigned __int64) -1; }
+bool CThorDiskCountArg::queryIsCodeSigned() { return false; }
 
 //CThorDiskGroupAggregateArg
 
@@ -845,6 +856,7 @@ unsigned CThorDiskGroupAggregateArg::getGroupingMaxField() { return 0; }
 size32_t CThorDiskGroupAggregateArg::initialiseCountGrouping(ARowBuilder & rowBuilder, const void * src) { rtlFailUnexpected(); return 0; }
 size32_t CThorDiskGroupAggregateArg::processCountGrouping(ARowBuilder & rowBuilder, unsigned __int64 count) { rtlFailUnexpected(); return 0; }
 size32_t CThorDiskGroupAggregateArg::mergeAggregate(ARowBuilder & rowBuilder, const void * src) { rtlFailUnexpected(); return 0; }
+bool CThorDiskGroupAggregateArg::queryIsCodeSigned() { return false; }
 
 //CThorCsvReadArg
 
@@ -860,6 +872,7 @@ void CThorCsvReadArg::createSegmentMonitors(IIndexReadContext *ctx) {}
 bool CThorCsvReadArg::canMatch(const void * row)                 { return true; }
 bool CThorCsvReadArg::hasMatchFilter()                           { return false; }
 void CThorCsvReadArg::getEncryptKey(size32_t & keyLen, void * & key) { keyLen = 0; key = 0; }
+bool CThorCsvReadArg::queryIsCodeSigned() { return false; }
 
 //CThorXmlReadArg
 
@@ -875,6 +888,7 @@ void CThorXmlReadArg::createSegmentMonitors(IIndexReadContext *ctx) {}
 bool CThorXmlReadArg::canMatch(const void * row)                 { return true; }
 bool CThorXmlReadArg::hasMatchFilter()                           { return false; }
 void CThorXmlReadArg::getEncryptKey(size32_t & keyLen, void * & key) { keyLen = 0; key = 0; }
+bool CThorXmlReadArg::queryIsCodeSigned() { return false; }
 
 //CThorChildGroupAggregateArg
 
