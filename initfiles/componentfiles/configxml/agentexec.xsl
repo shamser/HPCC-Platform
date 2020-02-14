@@ -112,7 +112,10 @@
         </xsl:attribute>
       </xsl:if>
       <xsl:copy-of select="/Environment/Software/Directories"/>  
-
+      <System>
+        <xsl:copy-of select="/Environment/Software/Costs"/>
+        <xsl:copy-of select="/Environment/Software/ResourceControl"/>
+      </System>
     </agentexec>
   </xsl:template>
 

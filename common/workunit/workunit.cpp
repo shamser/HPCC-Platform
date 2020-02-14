@@ -13611,6 +13611,34 @@ extern WORKUNIT_API void addTimeStamp(IWorkUnit * wu, StatisticScopeType scopeTy
     wu->setStatistic(queryStatisticsComponentType(), queryStatisticsComponentName(), scopeType, scopestr, kind, NULL, getTimeStampNowValue(), 1, 0, StatsMergeAppend);
 }
 
+extern WORKUNIT_API void setCost(IWorkUnit * wu, __int64 cost, StatisticScopeType scopeType, const char * scope, StatisticKind kind, unsigned wfid)
+{
+    StringBuffer scopestr;
+    if (wfid && scope && *scope)
+        scopestr.append(WorkflowScopePrefix).append(wfid).append(":").append(scope);
+    else
+        scopestr.set(scope);
+
+    wu->setStatistic(queryStatisticsComponentType(), queryStatisticsComponentName(), scopeType, scopestr, kind, NULL, cost, 1, 0, StatsMergeReplace);
+}
+
+extern WORKUNIT_API void setCostThor(IWorkUnit * wu, __int64 timeNs, unsigned clusterWidgth, const char * scope, unsigned wfid)
+{
+    IPropertyTree *costs = queryCostsConfiguration();
+    if (costs)
+    {
+        const char * val;
+
+        val = costs->queryProp("Cost[@name='thor_master']/@value");
+        double thor_master_rate = val?atof(val):0.0;
+        val = costs->queryProp("Cost[@name='thor_slave']/@value");
+        double thor_slave_rate = val?atof(val):0.0;
+
+        double time_seconds = ((double)timeNs/1000000000);
+        __int64 cost_thor = (time_seconds * thor_master_rate + time_seconds * thor_slave_rate * clusterWidgth)*10000;
+        setCost (wu, cost_thor, SSTgraph, scope, StCostExecute, wfid);
+    }
+}
 
 void aggregateStatistic(StatsAggregation & result, IConstWorkUnit * wu, const WuScopeFilter & filter, StatisticKind search)
 {

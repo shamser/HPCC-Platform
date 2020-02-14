@@ -918,7 +918,8 @@ bool CJobManager::executeGraph(IConstWorkUnit &workunit, const char *graphName, 
         updateWorkunitStat(wu, SSTgraph, graphName, StTimeElapsed, graphTimeStr, graphTimeNs, wfid);
 
         addTimeStamp(wu, SSTgraph, graphName, StWhenFinished, wfid);
-        
+        setCostThor(wu, graphTimeNs, queryNodeClusterWidth(), graphName, wfid);
+
         removeJob(*job);
     }
     catch (IException *e)

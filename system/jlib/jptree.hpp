@@ -290,6 +290,8 @@ inline static bool isValidXPathChr(char c)
 
 jlib_decl IPropertyTree * loadConfiguration(const char * defaultYaml, const char * * argv, const char * componentTag, const char * envPrefix, const char * legacyFilename, IPropertyTree * (mapper)(IPropertyTree *));
 jlib_decl StringBuffer & regenerateConfig(StringBuffer &jsonText, IPropertyTree * config, const char * componentTag);
+jlib_decl IPropertyTree * queryCostsConfiguration();
+jlib_decl IPropertyTree * queryDataConfiguration();
 
 /*
  YAML to PTree support

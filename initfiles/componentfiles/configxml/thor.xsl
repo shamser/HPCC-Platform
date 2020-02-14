@@ -206,6 +206,10 @@
           </xsl:if>
         </xsl:for-each>
       </SSH>
+      <System>
+        <xsl:copy-of select="/Environment/Software/Costs"/>
+        <xsl:copy-of select="/Environment/Software/ResourceControl"/>
+      </System>
     </Thor>
   </xsl:template>
 
