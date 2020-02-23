@@ -339,6 +339,37 @@ public:
     virtual bool onDebuggerTimeout();
 };
 
+struct CostParameters
+{
+    float thor_master = 0.0;
+    float thor_slave = 0.0;
+    float hthor = 0.0;
+    float eclcc = 0.0;
+
+    CostParameters(IPropertyTree * costs)
+    {
+        if (!costs) return;
+        Owned<IPropertyTreeIterator> iter = costs->getElements("Cost");
+        ForEach(*iter)
+        {
+            IPropertyTree & cur = iter->query();
+            const char * name = cur.queryProp("@name");
+            const char * svalue = cur.queryProp("@value");
+            if (name && svalue)
+            {
+                float value = atof(svalue);
+                if (streq(name, "thor_master"))
+                    thor_master = value;
+                else if (streq(name, "thor_slave"))
+                    thor_slave = value;
+                else if (streq(name, "hthor"))
+                    hthor = value;
+                else if (streq(name, "eclcc"))
+                    eclcc = value;
+            }
+        }
+    }
+};
 
 class CHThorDebugContext;
 class EclAgent : implements IAgentContext, implements ICodeContext, implements IRowAllocatorMetaActIdCacheCallback, implements IEngineContext, public CInterface
@@ -390,6 +421,7 @@ private:
     StringAttr agentTempDir;
     Owned<IOrderedOutputSerializer> outputSerializer;
     int retcode;
+    CostParameters costParameters;
 
 private:
     void doSetResultString(type_t type, const char * stepname, unsigned sequence, int len, const char *val);
@@ -446,7 +478,7 @@ private:
 public:
     IMPLEMENT_IINTERFACE;
 
-    EclAgent(IConstWorkUnit *wu, const char *_wuid, bool _checkVersion, bool _resetWorkflow, bool _noRetry, char const * _logname, const char *_allowedPipeProgs, IPropertyTree *_queryXML, IProperties *_globals, IPropertyTree *_config, ILogMsgHandler * _logMsgHandler);
+    EclAgent(IConstWorkUnit *wu, const char *_wuid, bool _checkVersion, bool _resetWorkflow, bool _noRetry, char const * _logname, const char *_allowedPipeProgs, IPropertyTree *_queryXML, IProperties *_globals, IPropertyTree *_config, ILogMsgHandler * _logMsgHandler, IPropertyTree *_costs);
     ~EclAgent();
 
     void setBlocked();

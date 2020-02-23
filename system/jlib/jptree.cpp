@@ -7872,6 +7872,7 @@ static void displayConfig(IPropertyTree * config, const char * componentTag)
     printf("%s\n", jsonText.str());
 }
 
+// SHAMSER: come back to do this.  Should we be using globals to store config IPropertyTree in a library module?
 static Owned<IPropertyTree> componentConfiguration;
 MODULE_INIT(INIT_PRIORITY_STANDARD)
 {

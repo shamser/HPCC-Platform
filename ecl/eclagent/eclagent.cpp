@@ -509,8 +509,10 @@ public:
 
 //=======================================================================================
 
-EclAgent::EclAgent(IConstWorkUnit *wu, const char *_wuid, bool _checkVersion, bool _resetWorkflow, bool _noRetry, char const * _logname, const char *_allowedPipeProgs, IPropertyTree *_queryXML, IProperties *_globals, IPropertyTree *_config, ILogMsgHandler * _logMsgHandler)
-    : wuRead(wu), wuid(_wuid), checkVersion(_checkVersion), resetWorkflow(_resetWorkflow), noRetry(_noRetry), allowedPipeProgs(_allowedPipeProgs), globals(_globals), config(_config), logMsgHandler(_logMsgHandler)
+EclAgent::EclAgent(IConstWorkUnit *wu, const char *_wuid, bool _checkVersion, bool _resetWorkflow, bool _noRetry, char const * _logname, const char *_allowedPipeProgs,
+                    IPropertyTree *_queryXML, IProperties *_globals, IPropertyTree *_config, ILogMsgHandler * _logMsgHandler, IPropertyTree *_costs)
+    : wuRead(wu), wuid(_wuid), checkVersion(_checkVersion), resetWorkflow(_resetWorkflow), noRetry(_noRetry), allowedPipeProgs(_allowedPipeProgs), globals(_globals),
+      config(_config), logMsgHandler(_logMsgHandler), costParameters(_costs)
 {
     isAborting = false;
     isStandAloneExe = false;
@@ -1623,6 +1625,7 @@ unsigned EclAgent::getNodes()//retrieve node count for current cluster
         else
             clusterWidth = 1;
     }
+    DBGLOG("EclAgent::getNodes()");
     return clusterWidth;
 }
 
@@ -3623,7 +3626,8 @@ extern int HTHOR_API eclagent_main(int argc, const char *argv[], StringBuffer * 
 
             if (w)
             {
-                EclAgent agent(w, wuid.str(), globals->getPropInt("IGNOREVERSION", 0)==0, globals->getPropBool("WFRESET", false), globals->getPropBool("NORETRY", false), logfilespec.str(), globals->queryProp("allowedPipePrograms"), query.getClear(), globals, agentTopology, logMsgHandler);
+                EclAgent agent(w, wuid.str(), globals->getPropInt("IGNOREVERSION", 0)==0, globals->getPropBool("WFRESET", false), globals->getPropBool("NORETRY", false), logfilespec.str(),
+                               globals->queryProp("allowedPipePrograms"), query.getClear(), globals, agentTopology, logMsgHandler, queryCostsConfiguration());
                 const bool isRemoteWorkunit = (daliServers.length() != 0);
                 const bool resolveFilesLocally = standAloneExe && (!isRemoteWorkunit || globals->getPropBool("USELOCALFILES", false));
                 const bool writeResultsToStdout = standAloneExe && (!isRemoteWorkunit || globals->getPropBool("RESULTSTOSTDOUT", true));
