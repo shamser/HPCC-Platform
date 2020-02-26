@@ -1974,6 +1974,7 @@ void EclAgent::doProcess()
                 WuAnalyseOptions options;  // TODO: read options from configuration file
                 analyseWorkunit(w.get(), options);
             }
+            // Calculate Costs
         }
         if(w->queryEventScheduledCount() > 0)
             switch(w->getState())
