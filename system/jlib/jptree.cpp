@@ -7921,7 +7921,7 @@ public:
         iEvent(&_iEvent), readerOptions(_readerOptions)
     {
         if (!yaml_parser_initialize(&parser))
-            throw makeStringException(99, "Filed to initialize libyaml parser");
+            throw makeStringException(99, "Failed to initialize libyaml parser");
         yaml_parser_set_input_string(&parser, (const unsigned char *)buf, bufLength);
         noRoot = 0 != ((unsigned)readerOptions & (unsigned)ptr_noRoot);
         if (!noRoot)
@@ -8439,7 +8439,7 @@ void saveYAML(IFile &ifile, const IPropertyTree *tree, unsigned indent, unsigned
 {
     OwnedIFileIO ifileio = ifile.open(IFOcreate);
     if (!ifileio)
-        throw MakeStringException(0, "saveXML: could not find %s to open", ifile.queryFilename());
+        throw MakeStringException(0, "saveYAML: could not create file %s", ifile.queryFilename());
     saveYAML(*ifileio, tree, indent, flags);
 }
 
