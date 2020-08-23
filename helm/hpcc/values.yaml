@@ -18,6 +18,18 @@ global:
   # Can also be overridden locally in individual components
   ## defaultEsp: eclservices
 
+  # Specify resources limits: (by default unlimited)
+  # For cpu, use decimal number to specify fractional number of cpus or "m" units to specify amount of millicoures
+  # For memory, valid units are E, P, T, G, M, K or (power-of-two equivalents: Ei, Pi, Ti, Gi, Mi, Ki) or number of bytes
+  # - Exabytes, Petabytes, Terabytes, Gigabytes, Megabytes, Kilobytes
+  # Note that the same resource limits may be specified for dali, thor, roxie, eclagent, eclccserver and esp
+  #  requests:
+  #    cpu: "1.0"
+  #    memory: "129m"
+  #  limits:
+  #    cpu: "2.0"
+  #    memory: "1G"
+
 ## storage:
 ##
 ## If storage.[type].existingClaim is defined, a Persistent Volume Claim must

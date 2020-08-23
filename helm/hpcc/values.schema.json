@@ -116,6 +116,9 @@
         },
         "defaultMirrorPath": {
           "type": "string"
+        },
+        "resources": {
+          "$ref": "#/definitions/resources"
         }
       },
       "additionalProperties": false
@@ -155,6 +158,25 @@
       },
       "required": [ "storageSize" ],
       "additionalProperties": false
+    },
+    "resources": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "object",
+          "properties": {
+            "cpu": { "type": "string" },
+            "memory": { "type": "string"}
+          }
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "cpu": { "type": "string" },
+            "memory": { "type": "string"}
+          }
+        }
+      }
     },
     "secrets": {
       "oneOf": [
@@ -199,6 +221,9 @@
         },
         "logging": {
           "$ref": "#/definitions/logging"
+        },
+        "resources": {
+          "$ref": "#/definitions/resources"
         }
       }
     },
@@ -227,6 +252,9 @@
         },
         "logging": {
           "$ref": "#/definitions/logging"
+        },
+        "resources": {
+          "$ref": "#/definitions/resources"
         }
       }
     },
@@ -247,6 +275,9 @@
         },
         "logging": {
           "$ref": "#/definitions/logging"
+        },
+        "resources": {
+          "$ref": "#/definitions/resources"
         }
       }
     },
@@ -277,6 +308,16 @@
         },
         "logging": {
           "$ref": "#/definitions/logging"
+<<<<<<< HEAD
+=======
+        },
+        "storagePlane": {
+          "description": "The default storage plane to write data files to",
+          "type": "string"
+        },
+        "resources": {
+          "$ref": "#/definitions/resources"
+>>>>>>> HPCC-24656 Add support for resource limits in helm
         }
       }
     },
@@ -303,6 +344,20 @@
           "description": "Roxie query services",
           "type": "array",
           "items": { "$ref": "#/definitions/roxieservice" }
+<<<<<<< HEAD
+=======
+        },
+        "storagePlane": {
+          "description": "The default storage plane to write data files to",
+          "type": "string"
+        },
+        "spillPlane": {
+          "description": "The storage plane to write spill files to",
+          "type": "string"
+        },
+        "resources": {
+          "$ref": "#/definitions/resources"
+>>>>>>> HPCC-24656 Add support for resource limits in helm
         }
       }
     },
@@ -377,6 +432,17 @@
         },
         "logging": {
           "$ref": "#/definitions/logging"
+        },
+        "storagePlane": {
+          "description": "The default storage plane to write data files to",
+          "type": "string"
+        },
+        "spillPlane": {
+          "description": "The storage plane to write spill files to",
+          "type": "string"
+        },
+        "resources": {
+          "$ref": "#/definitions/resources"
         }
       }
     }
