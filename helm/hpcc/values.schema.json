@@ -159,23 +159,28 @@
       "required": [ "storageSize" ],
       "additionalProperties": false
     },
+    "resourceLimitItem": {
+      "type": "object",
+      "properties": {
+        "cpu": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "number" }
+          ]
+        },
+        "memory": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "integer" }
+          ]
+        }
+      }
+    },
     "resources": {
       "type": "object",
       "properties": {
-        "requests": {
-          "type": "object",
-          "properties": {
-            "cpu": { "type": "string" },
-            "memory": { "type": "string"}
-          }
-        },
-        "limits": {
-          "type": "object",
-          "properties": {
-            "cpu": { "type": "string" },
-            "memory": { "type": "string"}
-          }
-        }
+        "requests": { "$ref": "#/definitions/resourceLimitItem" },
+        "limits": { "$ref": "#/definitions/resourceLimitItem" }
       }
     },
     "secrets": {
@@ -255,6 +260,9 @@
         },
         "resources": {
           "$ref": "#/definitions/resources"
+        },
+        "childContainersResources": {
+          "$ref": "#/definitions/resources"
         }
       }
     },
@@ -308,8 +316,6 @@
         },
         "logging": {
           "$ref": "#/definitions/logging"
-<<<<<<< HEAD
-=======
         },
         "storagePlane": {
           "description": "The default storage plane to write data files to",
@@ -317,7 +323,9 @@
         },
         "resources": {
           "$ref": "#/definitions/resources"
->>>>>>> HPCC-24656 Add support for resource limits in helm
+        },
+        "childContainersResources": {
+          "$ref": "#/definitions/resources"
         }
       }
     },
@@ -344,8 +352,6 @@
           "description": "Roxie query services",
           "type": "array",
           "items": { "$ref": "#/definitions/roxieservice" }
-<<<<<<< HEAD
-=======
         },
         "storagePlane": {
           "description": "The default storage plane to write data files to",
@@ -357,7 +363,6 @@
         },
         "resources": {
           "$ref": "#/definitions/resources"
->>>>>>> HPCC-24656 Add support for resource limits in helm
         }
       }
     },
@@ -442,6 +447,9 @@
           "type": "string"
         },
         "resources": {
+          "$ref": "#/definitions/resources"
+        },
+        "childContainersResources": {
           "$ref": "#/definitions/resources"
         }
       }

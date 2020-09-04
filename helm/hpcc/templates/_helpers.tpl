@@ -343,9 +343,10 @@ Generate list of available services
 {{ end -}}
 {{- end -}}
 
+
 {{/*
-Add cpu resource request
-Pass in a dictionary with me defined
+Add resource object
+Pass in a dictionary with root and me defined
 */}}
 {{- define "hpcc.addResources" }}
 {{- if .me.resources }}

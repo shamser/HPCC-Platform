@@ -14018,23 +14018,52 @@ bool executeGraphOnLingeringThor(IConstWorkUnit &workunit, const char *graphName
 
 static void setResources(StringBuffer &jobYaml, const IConstWorkUnit *workunit, const char *process)
 {
+    class GenerateResources
+    {
+    public:
+        GenerateResources(StringBuffer &_jobYaml, IPropertyTree *_cconfig): jobYaml(_jobYaml), cconfig(_cconfig) {};
+
+        void setResourceValue(const char *category, const char *resourceName,  unsigned wuvalue, const char *units)
+        {
+            if (!wuvalue && !cconfig)
+                return;
+            StringBuffer tag2replace;
+            tag2replace.setf("#%s-%s", category, resourceName);
+
+            StringBuffer s;
+            s.clear().appendf("%s: ", resourceName);
+            if (wuvalue)
+            {
+                jobYaml.replaceString(tag2replace, s.appendf("\"%u%s\"", wuvalue, units));
+            }
+            else
+            {
+                StringBuffer p;
+                p.appendf("./%s/@%s", category, resourceName);
+                const char *v = cconfig->queryProp(p.str());
+                if (v)
+                    jobYaml.replaceString(tag2replace, s.appendf("\"%s\"", v));
+            }
+        }
+    private:
+        StringBuffer &jobYaml;
+        Owned<IPropertyTree> cconfig;
+    } generateResources (jobYaml, queryComponentConfig().getPropTree("childContainersResources"));
+
     StringBuffer s;
     unsigned memRequest = workunit->getDebugValueInt(s.clear().appendf("%s-memRequest", process), 0);
     unsigned memLimit = workunit->getDebugValueInt(s.clear().appendf("%s-memLimit", process), 0);
     if (memLimit && memLimit < memRequest)
         memLimit = memRequest;
-    if (memRequest)
-        jobYaml.replaceString("#request-memory", s.clear().appendf("memory: \"%uMi\"", memRequest));
-    if (memLimit)
-        jobYaml.replaceString("#limit-memory", s.clear().appendf("memory: \"%uMi\"", memLimit));
+    generateResources.setResourceValue("requests", "memory", memRequest, "Mi");
+    generateResources.setResourceValue("limits", "memory", memLimit, "Mi");
+
     unsigned cpuRequest = workunit->getDebugValueInt(s.clear().appendf("%s-cpuRequest", process), 0);
     unsigned cpuLimit = workunit->getDebugValueInt(s.clear().appendf("%s-cpuLimit", process), 0);
     if (cpuLimit && cpuLimit < cpuRequest)
         cpuLimit = cpuRequest;
-    if (cpuRequest)
-        jobYaml.replaceString("#request-cpu", s.clear().appendf("cpu: \"%um\"", cpuRequest));
-    if (cpuLimit)
-        jobYaml.replaceString("#limit-cpu", s.clear().appendf("cpu: \"%um\"", cpuLimit));
+    generateResources.setResourceValue("requests", "cpu", cpuRequest, "m");
+    generateResources.setResourceValue("limits", "cpu", cpuLimit, "m");
 }
 
 

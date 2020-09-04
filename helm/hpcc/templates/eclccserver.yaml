@@ -74,11 +74,11 @@ data:
 {{ include "hpcc.addImageAttrs" (dict "root" $ "me" .) | indent 12 }}
             resources:
               requests:
-                #request-memory
-                #request-cpu
+                #requests-memory
+                #requests-cpu
               limits:
-                #limit-memory
-                #limit-cpu
+                #limits-memory
+                #limits-cpu
             workingDir: /var/lib/HPCCSystems
             command: [ eclccserver ]
             args: [
