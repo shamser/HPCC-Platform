@@ -351,11 +351,11 @@ Pass in a dictionary with root and me defined
 {{- define "hpcc.addResources" }}
 {{- if .me.resources }}
 resources:
-{{- toYaml .me.resources | nindent 2 -}}
+{{ toYaml .me.resources | indent 2 -}}
 {{ else }}
 {{- if .root.Values.global.resources }}
 resources:
-{{- toYaml .root.Values.global.resources | nindent 2 -}}
+{{ toYaml .root.Values.global.resources | indent 2 -}}
 {{- end }}
 {{- end }}
 {{- end -}}

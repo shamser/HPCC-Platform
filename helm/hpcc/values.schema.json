@@ -164,13 +164,19 @@
       "properties": {
         "cpu": {
           "oneOf": [
-            { "type": "string" },
+            {
+              "type": "string",
+              "pattern": "^([+-]?[0-9.]+)([m]*)$"
+            },
             { "type": "number" }
           ]
         },
         "memory": {
           "oneOf": [
-            { "type": "string" },
+            {
+              "type": "string",
+              "pattern" : "^([+-]?[0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$"
+            },
             { "type": "integer" }
           ]
         }
@@ -449,7 +455,10 @@
         "resources": {
           "$ref": "#/definitions/resources"
         },
-        "childContainersResources": {
+        "thorMasterResources": {
+          "$ref": "#/definitions/resources"
+        },
+        "thorSlaveResources": {
           "$ref": "#/definitions/resources"
         }
       }

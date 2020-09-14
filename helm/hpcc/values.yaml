@@ -109,13 +109,13 @@ eclagent:
   useChildProcesses: false
   ## type may be 'hthor' (the default) or 'roxie', to specify that the roxie engine rather than the hthor engine should be used for eclagent workunit processing
   type: hthor
-  #childContainersResources:
-  #  requests:
-  #    cpu: "1"
-  #    memory: "1G"
-  #  limits:
-  #    cpu: "1"
-  #    memory: "4G"
+  childContainersResources:
+    requests:
+      cpu: "1"
+      memory: "1G"
+    limits:
+      cpu: "1"
+      memory: "4G"
 
 - name: roxie
   replicas: 1
@@ -133,13 +133,13 @@ eclccserver:
   maxActive: 4
   ## Specify a list of queues to listen on if you don't want this eclccserver listening on all queues. If empty or missing, listens on all queues
   listen: []
-  #childContainersResources:
-  #  requests:
-  #    cpu: "1"
-  #    memory: "500M"
-  #  limits:
-  #    cpu: "1"
-  #    memory: "4G"
+  childContainersResources:
+    requests:
+      cpu: "1"
+      memory: "500M"
+    limits:
+      cpu: "1"
+      memory: "4G"
     
 esp:
 - name: eclwatch
@@ -207,20 +207,19 @@ thor:
   prefix: thor
   eclagent:
     maxActive: 4
-    #childContainersResources:
-    #  requests:
-    #    cpu: "1.0"
-    #    memory: "1G"
-    #  limits:
-    #    cpu: "2.0"
-    #    memory: "2G"
   thoragent:
     maxActive: 2
-  # Resource limits for thor slave and thor master
-  #childContainersResources:
-  #  requests:
-  #    cpu: "1"
-  #    memory: "1G"
-  #  limits:
-  #    cpu: "1"
-  #    memory: "6G"
+  thorMasterResources:
+    requests:
+      cpu: "1"
+      memory: "400M"
+    limits:
+      cpu: "1"
+      memory: "4G"
+  thorSlaveResources:
+    requests:
+      cpu: "1"
+      memory: "500M"
+    limits:
+      cpu: "1"
+      memory: "4G"

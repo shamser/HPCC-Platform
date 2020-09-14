@@ -14018,52 +14018,52 @@ bool executeGraphOnLingeringThor(IConstWorkUnit &workunit, const char *graphName
 
 static void setResources(StringBuffer &jobYaml, const IConstWorkUnit *workunit, const char *process)
 {
-    class GenerateResources
+    Owned<IPropertyTree> cconfig;
+    
+    if (strcmp(process,"thormaster")==0)
+        cconfig.setown(queryComponentConfig().getPropTree("thorMasterResources"));
+    else if (strcmp(process,"thorslave")==0) 
+        cconfig.setown(queryComponentConfig().getPropTree("thorSlaveResources"));
+    else
+        cconfig.setown(queryComponentConfig().getPropTree("childContainersResources"));
+
+    auto generateResourceLine = [&jobYaml, &cconfig](const char *category, const char *resourceName,  unsigned wuvalue, const char *units)
     {
-    public:
-        GenerateResources(StringBuffer &_jobYaml, IPropertyTree *_cconfig): jobYaml(_jobYaml), cconfig(_cconfig) {};
-
-        void setResourceValue(const char *category, const char *resourceName,  unsigned wuvalue, const char *units)
+        if (!wuvalue && !cconfig)
+            return;
+        // Generate tag in jobspec to replace .e.g. #requests-limit
+        VStringBuffer tag2replace("#%s-%s", category, resourceName);
+        VStringBuffer s("%s: ", resourceName);
+        if (wuvalue)
         {
-            if (!wuvalue && !cconfig)
-                return;
-            StringBuffer tag2replace;
-            tag2replace.setf("#%s-%s", category, resourceName);
-
-            StringBuffer s;
-            s.clear().appendf("%s: ", resourceName);
-            if (wuvalue)
-            {
-                jobYaml.replaceString(tag2replace, s.appendf("\"%u%s\"", wuvalue, units));
-            }
-            else
-            {
-                StringBuffer p;
-                p.appendf("./%s/@%s", category, resourceName);
-                const char *v = cconfig->queryProp(p.str());
-                if (v)
-                    jobYaml.replaceString(tag2replace, s.appendf("\"%s\"", v));
-            }
+            // Replace tag with value from workunit's debug option
+            jobYaml.replaceString(tag2replace, s.appendf("\"%u%s\"aaaaaaa", wuvalue, units));
         }
-    private:
-        StringBuffer &jobYaml;
-        Owned<IPropertyTree> cconfig;
-    } generateResources (jobYaml, queryComponentConfig().getPropTree("childContainersResources"));
+        else
+        {
+            // Extract and use component's resource value from config file (childContainersResources)
+            VStringBuffer p("./%s/@%s", category, resourceName);
+            const char *v = cconfig->queryProp(p.str());
+            if (v)
+                jobYaml.replaceString(tag2replace, s.appendf("\"%s\"", v));
+        }
+    };
 
     StringBuffer s;
     unsigned memRequest = workunit->getDebugValueInt(s.clear().appendf("%s-memRequest", process), 0);
     unsigned memLimit = workunit->getDebugValueInt(s.clear().appendf("%s-memLimit", process), 0);
     if (memLimit && memLimit < memRequest)
         memLimit = memRequest;
-    generateResources.setResourceValue("requests", "memory", memRequest, "Mi");
-    generateResources.setResourceValue("limits", "memory", memLimit, "Mi");
+    generateResourceLine("requests", "memory", memRequest, "Mi");
+    generateResourceLine("limits", "memory", memLimit, "Mi");
 
     unsigned cpuRequest = workunit->getDebugValueInt(s.clear().appendf("%s-cpuRequest", process), 0);
     unsigned cpuLimit = workunit->getDebugValueInt(s.clear().appendf("%s-cpuLimit", process), 0);
     if (cpuLimit && cpuLimit < cpuRequest)
         cpuLimit = cpuRequest;
-    generateResources.setResourceValue("requests", "cpu", cpuRequest, "m");
-    generateResources.setResourceValue("limits", "cpu", cpuLimit, "m");
+    generateResourceLine("requests", "cpu", cpuRequest, "m");
+    generateResourceLine("limits", "cpu", cpuLimit, "m");
+    DBGLOG("yaml %s", jobYaml.str());
 }
 
 

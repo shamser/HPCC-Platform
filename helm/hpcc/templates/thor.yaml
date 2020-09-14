@@ -121,6 +121,10 @@ data:
 {{ toYaml (omit $thorAgentScope "logging") | indent 6 }}
 {{- include "hpcc.generateLoggingConfig" (dict "root" $ "me" $thorAgentScope) | indent 6 }}
       type: thor
+      thorMasterResources:
+{{ if $thor.thorMasterResources -}}
+{{ toYaml $thor.thorMasterResources | indent 8 }}
+{{- end }}
 {{- if $thorAgentScope.useChildProcesses }}
     thor:
 {{ toYaml (omit $thorScope "logging") | indent 6 }}
@@ -190,6 +194,7 @@ data:
           containers:
           - name: %jobname
 {{- include "hpcc.addSecurityContext" (dict "root" $ "me" .) | indent 12 }}
+{{ include "hpcc.addImageAttrs" (dict "root" $ "me" .) | indent 12 }}
             resources:
               requests:
                 #requests-memory
@@ -197,14 +202,6 @@ data:
               limits:
                 #limits-memory
                 #limits-cpu
-{{ include "hpcc.addImageAttrs" (dict "root" $ "me" .) | indent 12 }}
-            resources:
-              requests:
-                #request-memory
-                #request-cpu
-              limits:
-                #limit-memory
-                #limit-cpu
             workingDir: /var/lib/HPCCSystems
             command: [ thormaster_lcr ] 
             args: [
@@ -240,6 +237,7 @@ data:
           containers:
           - name: %jobname
 {{- include "hpcc.addSecurityContext" (dict "root" $ "me" .) | indent 12 }}
+{{ include "hpcc.addImageAttrs" (dict "root" $ "me" .) | indent 12 }}
             resources:
               requests:
                 #requests-memory
@@ -247,14 +245,6 @@ data:
               limits:
                 #limits-memory
                 #limits-cpu
-{{ include "hpcc.addImageAttrs" (dict "root" $ "me" .) | indent 12 }}
-            resources:
-              requests:
-                #request-memory
-                #request-cpu
-              limits:
-                #limit-memory
-                #limit-cpu
             workingDir: /var/lib/HPCCSystems
             command: [ thorslave_lcr ] 
             args: [
