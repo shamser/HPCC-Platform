@@ -24,6 +24,7 @@ class Cws_codesignEx : public Cws_codesign
 {
 private:
     Owned<IPropertyTree> m_serviceCfg;
+    StringBuffer extraGpgCmdOptions;
     void clearPassphrase(const char* key);
 public:
     IMPLEMENT_IINTERFACE

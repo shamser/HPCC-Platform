@@ -31,6 +31,16 @@ void Cws_codesignEx::init(IPropertyTree *cfg, const char *process, const char *s
     if(cfg == nullptr)
         throw MakeStringException(-1, "Cannot initialize Cws_codesignEx, cfg is NULL");
 
+#ifdef _CONTAINERIZED
+    StringBuffer gpghomedir;
+    appendCurrentDirectory(gpghomedir, false);
+    addPathSepChar(gpghomedir).append("gnugpg");
+    extraGpgCmdOptions.appendf(" --homedir %s", gpghomedir.str());
+    Owned<IFile> dir = createIFile(gpghomedir.str());
+    dir->createDirectory();
+
+    importGpgKeysFromSecrets("codeSign", "key-gpg-", extraGpgCmdOptions, false, true);
+#endif
     StringBuffer xpath;
     xpath.appendf("Software/EspProcess[@name=\"%s\"]/EspService[@name=\"%s\"]", process, service);
     m_serviceCfg.setown(cfg->getPropTree(xpath.str()));
@@ -72,9 +82,9 @@ bool Cws_codesignEx::onSign(IEspContext &context, IEspSignRequest &req, IEspSign
     output.clear();
     errmsg.clear();
     if (isGPGv1)
-        cmd.appendf("gpg --list-secret-keys \"=%s\"", userid.str()); // = means exact match
+        cmd.appendf("gpg %s --list-secret-keys \"=%s\"", extraGpgCmdOptions.str(), userid.str()); // = means exact match
     else
-        cmd.appendf("gpg --list-secret-keys --with-keygrip \"=%s\"", userid.str()); // = means exact match
+        cmd.appendf("gpg %s --list-secret-keys --with-keygrip \"=%s\"", extraGpgCmdOptions.str(), userid.str()); // = means exact match
     ret = runExternalCommand(output, errmsg, cmd.str(), nullptr);
     if (ret != 0 || strstr(output.str(), userid.str()) == nullptr)
     {
@@ -95,7 +105,7 @@ bool Cws_codesignEx::onSign(IEspContext &context, IEspSignRequest &req, IEspSign
 
     output.clear();
     errmsg.clear();
-    cmd.clear().appendf("gpg --clearsign -u \"%s\" --yes --batch --passphrase-fd 0", userid.str());
+    cmd.clear().appendf("gpg %s --clearsign -u \"%s\" --yes --batch --passphrase-fd 0", extraGpgCmdOptions.str(), userid.str());
     if (!isGPGv1)
         cmd.append(" --pinentry-mode loopback");
     VStringBuffer input("%s\n", req.getKeyPass());
@@ -145,7 +155,8 @@ bool Cws_codesignEx::onListUserIDs(IEspContext &context, IEspListUserIDsRequest 
     const int SKIP = 8;
     output.clear().append("\n");
     errmsg.clear();
-    ret = runExternalCommand(output, errmsg, "gpg --list-secret-keys --with-colon", nullptr);
+    VStringBuffer cmd("gpg %s --list-secret-keys --with-colon", extraGpgCmdOptions.str());
+    ret = runExternalCommand(output, errmsg, cmd.str(), nullptr);
     if (ret != 0)
         throw MakeStringException(-1, "Error running gpg: %s", errmsg.str());
     const char* line = output.str();

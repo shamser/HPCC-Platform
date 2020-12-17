@@ -49,6 +49,12 @@
         "ecl": {
           "$ref": "#/definitions/secrets"
         },
+        "codeSign": {
+          "$ref": "#/definitions/secrets"
+        },
+        "codeVerify": {
+          "$ref": "#/definitions/secrets"
+        },
         "system": {
           "$ref": "#/definitions/secrets"
         }

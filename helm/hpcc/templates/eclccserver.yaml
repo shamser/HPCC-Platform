@@ -41,14 +41,14 @@ spec:
 {{ include "hpcc.addConfigMapVolumeMount" . | indent 8 }}
 {{ include "hpcc.addDataVolumeMount" (dict "root" $ "me" . ) | indent 8 }}
 {{ include "hpcc.addDllVolumeMount" $ | indent 8 }}
-{{ include "hpcc.addSecretVolumeMounts" (dict "root" $ "categories" (list "system" ) ) | indent 8 }}
+{{ include "hpcc.addSecretVolumeMounts" (dict "root" $ "categories" (list "system" "codeVerify" ) ) | indent 8 }}
         - name: "hpccbundles"
           mountPath: "/home/hpcc/.HPCCSystems"
       volumes:
 {{ include "hpcc.addConfigMapVolume" . | indent 6 }}
 {{ include "hpcc.addDataVolume" (dict "root" $ "me" . ) | indent 6 }}
 {{ include "hpcc.addDllVolume" $ | indent 6 }}
-{{ include "hpcc.addSecretVolumes" (dict "root" $ "categories" (list "system" ) ) | indent 6 }}
+{{ include "hpcc.addSecretVolumes" (dict "root" $ "categories" (list "system" "codeVerify" ) ) | indent 6 }}
       - name: hpccbundles
         emptyDir: {}
 ---

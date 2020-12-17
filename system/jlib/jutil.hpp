@@ -473,6 +473,7 @@ extern jlib_decl int getEnum(const char *v, const EnumMapping *map); //fails if 
 extern jlib_decl const char *getEnumText(int value, const EnumMapping *map, const char * defval);
 extern jlib_decl int getEnum(const char *v, const EnumMapping *map, int defval);
 
+extern void jlib_decl importGpgKeysFromSecrets(const char * secretCat, const char * secretPrefix, const char *gpgOptions, bool importPublicKeys, bool importPrivateKeys);
 
 class jlib_decl QuantilePositionIterator
 {

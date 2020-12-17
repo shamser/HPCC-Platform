@@ -914,6 +914,15 @@ int main(int argc, const char *argv[])
 #endif
 
 #ifdef _CONTAINERIZED
+            // Import gpg keys from secrets/vault if available
+            StringBuffer gpghomedir;
+            appendCurrentDirectory(gpghomedir, false);
+            addPathSepChar(gpghomedir).append("gnugpg");
+            Owned<IFile> dir = createIFile(gpghomedir.str());
+            dir->createDirectory();
+            VStringBuffer extraGpgCmdOptions(" --homedir %s", gpghomedir.str());
+            importGpgKeysFromSecrets("codeVerify", "key-gpg-", extraGpgCmdOptions, true, false);
+
             bool filtered = false;
             std::unordered_map<std::string, bool> listenQueues;
             Owned<IPTreeIterator> listening = globals->getElements("listen");

@@ -54,6 +54,7 @@
 #include "build-config.h"
 
 #include "portlist.h"
+#include "jsecrets.hpp"
 
 static NonReentrantSpinLock * cvtLock;
 
@@ -3104,6 +3105,71 @@ void jlib_decl atomicWriteFile(const char *fileName, const char *output)
     newFile->rename(fileName);
 }
 
+void jlib_decl importGpgKeysFromSecrets(const char * secretCat, const char * secretPrefix, const char *gpgOptions, bool importPublicKeys, bool importPrivateKeys)
+{
+    for (int keyentry = 1; ; keyentry++)
+    {
+        VStringBuffer keysecretname("%s%d", secretPrefix, keyentry);
+        Owned<IPropertyTree> secretKey = getSecret(secretCat, keysecretname.str());
+        if (secretKey)
+        {
+            StringBuffer tmpfilename;
+            makeTempCopyName(tmpfilename, "key");
+            StringBuffer privateKey;
+            if (importPrivateKeys && secretKey->getProp("private", privateKey))
+            {
+                try
+                {
+                    StringBuffer passphrase;
+                    secretKey->getProp("passphrase", passphrase);
+                    OwnedIFile tmpFile = createIFile(tmpfilename);
+                    OwnedIFileIO fileIO = tmpFile->open(IFOcreate);
+                    fileIO->write(0, privateKey.length(), privateKey.str());
+                    fileIO->close();
+                    VStringBuffer cmd("gpg %s --batch --passphrase-fd 0 --import %s ", gpgOptions, tmpfilename.str());
+                    StringBuffer output, errmsg;
+                    VStringBuffer input("%s\n", passphrase.str());
+                    int ret = runExternalCommand(output, errmsg, cmd.str(), input);
+                    if (ret != 0)
+                        OERRLOG("External command failed: %s", errmsg.str());
+                    tmpFile->remove();
+                }
+                catch (IException *e)
+                {
+                    EXCLOG(e, "Private key import failed");
+                    e->Release();
+                }
+            }
+            StringBuffer publicKey;
+            if (importPublicKeys && secretKey->getProp("public", publicKey))
+            {
+                try
+                {
+                    OwnedIFile tmpFile = createIFile(tmpfilename);
+                    OwnedIFileIO fileIO = tmpFile->open(IFOcreate);
+                    fileIO->write(0, publicKey.length(), publicKey.str());
+                    fileIO->close();
+                    VStringBuffer cmd("gpg %s --batch --import %s ", gpgOptions, tmpfilename.str());
+                    StringBuffer output, errmsg;
+                    int ret = runExternalCommand(output, errmsg, cmd.str(), nullptr);
+                    if (ret != 0)
+                        OERRLOG("External command failed: %s", errmsg.str());
+                    tmpFile->remove();
+                }
+                catch (IException *e)
+                {
+                    EXCLOG(e, "Private key import failed");
+                    e->Release();
+                }
+            }
+        }
+        else
+        {
+            DBGLOG("gpg import key: no codeSign/%s secret", keysecretname.str());
+            break;
+        }
+    }
+}
 //---------------------------------------------------------------------------------------------------------------------
 
 
