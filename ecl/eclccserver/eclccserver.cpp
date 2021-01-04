@@ -918,10 +918,7 @@ int main(int argc, const char *argv[])
             StringBuffer gpghomedir;
             appendCurrentDirectory(gpghomedir, false);
             addPathSepChar(gpghomedir).append("gnugpg");
-            Owned<IFile> dir = createIFile(gpghomedir.str());
-            dir->createDirectory();
-            VStringBuffer extraGpgCmdOptions(" --homedir %s", gpghomedir.str());
-            importGpgKeysFromSecrets("codeVerify", "key-gpg-", extraGpgCmdOptions, true, false);
+            importGpgKeysFromSecrets("codeVerify", "key-gpg-", gpghomedir, true, false);
 
             bool filtered = false;
             std::unordered_map<std::string, bool> listenQueues;

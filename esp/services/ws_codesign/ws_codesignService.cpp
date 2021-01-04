@@ -35,9 +35,6 @@ void Cws_codesignEx::init(IPropertyTree *cfg, const char *process, const char *s
     StringBuffer gpghomedir;
     appendCurrentDirectory(gpghomedir, false);
     addPathSepChar(gpghomedir).append("gnugpg");
-    extraGpgCmdOptions.appendf(" --homedir %s", gpghomedir.str());
-    Owned<IFile> dir = createIFile(gpghomedir.str());
-    dir->createDirectory();
 
     importGpgKeysFromSecrets("codeSign", "key-gpg-", extraGpgCmdOptions, false, true);
 #endif

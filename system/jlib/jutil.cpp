@@ -3105,14 +3105,30 @@ void jlib_decl atomicWriteFile(const char *fileName, const char *output)
     newFile->rename(fileName);
 }
 
-void jlib_decl importGpgKeysFromSecrets(const char * secretCat, const char * secretPrefix, const char *gpgOptions, bool importPublicKeys, bool importPrivateKeys)
+void jlib_decl importGpgKeysFromSecrets(const char * secretCat, const char * secretPrefix, const char *gpgHomeDir, bool importPublicKeys, bool importPrivateKeys)
 {
+    bool createHomeDir;
+    StringBuffer gpgOptions;
+    if (gpgHomeDir)
+    {
+        createHomeDir = true;
+        gpgOptions.appendf(" --homedir %s", gpgHomeDir);
+    }
+    else
+        createHomeDir = false;
+
     for (int keyentry = 1; ; keyentry++)
     {
         VStringBuffer keysecretname("%s%d", secretPrefix, keyentry);
         Owned<IPropertyTree> secretKey = getSecret(secretCat, keysecretname.str());
         if (secretKey)
         {
+            if (createHomeDir)
+            {
+                Owned<IFile> dir = createIFile(gpgHomeDir);
+                dir->createDirectory();
+                createHomeDir = false;
+            }
             StringBuffer tmpfilename;
             makeTempCopyName(tmpfilename, "key");
             StringBuffer privateKey;
@@ -3126,7 +3142,7 @@ void jlib_decl importGpgKeysFromSecrets(const char * secretCat, const char * sec
                     OwnedIFileIO fileIO = tmpFile->open(IFOcreate);
                     fileIO->write(0, privateKey.length(), privateKey.str());
                     fileIO->close();
-                    VStringBuffer cmd("gpg %s --batch --passphrase-fd 0 --import %s ", gpgOptions, tmpfilename.str());
+                    VStringBuffer cmd("gpg %s --batch --passphrase-fd 0 --import %s ", gpgOptions.str(), tmpfilename.str());
                     StringBuffer output, errmsg;
                     VStringBuffer input("%s\n", passphrase.str());
                     int ret = runExternalCommand(output, errmsg, cmd.str(), input);
@@ -3149,7 +3165,7 @@ void jlib_decl importGpgKeysFromSecrets(const char * secretCat, const char * sec
                     OwnedIFileIO fileIO = tmpFile->open(IFOcreate);
                     fileIO->write(0, publicKey.length(), publicKey.str());
                     fileIO->close();
-                    VStringBuffer cmd("gpg %s --batch --import %s ", gpgOptions, tmpfilename.str());
+                    VStringBuffer cmd("gpg %s --batch --import %s ", gpgOptions.str(), tmpfilename.str());
                     StringBuffer output, errmsg;
                     int ret = runExternalCommand(output, errmsg, cmd.str(), nullptr);
                     if (ret != 0)
@@ -3165,8 +3181,7 @@ void jlib_decl importGpgKeysFromSecrets(const char * secretCat, const char * sec
         }
         else
         {
-            DBGLOG("gpg import key: no codeSign/%s secret", keysecretname.str());
-            break;
+            break; // finished importing keys
         }
     }
 }
