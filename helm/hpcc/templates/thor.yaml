@@ -20,14 +20,14 @@ data:
     thor:
 {{ toYaml $thorScope | indent 6 }}
 {{- include "hpcc.generateLoggingConfig" (dict "root" .root "me" $thorScope) | indent 6 }}
-{{ include "hpcc.generateVaultConfig" (dict "root" .root "categories" .secretsCategoriesUser ) | indent 6 }}
+{{ include "hpcc.generateVaultConfig" (dict "root" .root "categories" .secretsCategories ) | indent 6 }}
     {{ $eclAgentType }}: # hthor or roxie
 {{ toYaml $hthorScope | indent 6 }}
       platform:
         type: "thor"
         width: {{ mul ($thorScope.numWorkers | default 1) ( $thorScope.channelsPerWorker | default 1) }}
 {{- include "hpcc.generateLoggingConfig" (dict "root" .root "me" $hthorScope ) | indent 6 }}
-{{ include "hpcc.generateVaultConfig" (dict "root" .root "categories" .secretsCategoriesUser ) | indent 6 }}
+{{ include "hpcc.generateVaultConfig" (dict "root" .root "categories" .secretsCategories ) | indent 6 }}
     eclagent: # main agent Q handler
 {{ toYaml $eclAgentScope | indent 6 }}
 {{- include "hpcc.generateLoggingConfig" (dict "root" .root "me" $eclAgentScope) | indent 6 }}
@@ -82,12 +82,12 @@ data:
 {{ include "hpcc.addConfigMapVolumeMount" .me | indent 12 }}
 {{ include "hpcc.addDataVolumeMount" . | indent 12 }}
 {{ include "hpcc.addDllVolumeMount" . | indent 12 }}
-{{ include "hpcc.addSecretVolumeMounts" (dict "root" .root "categories" .secretsCategoriesSystem ) | indent 12 }}
+{{ include "hpcc.addSecretVolumeMounts" (dict "root" .root "categories" .secretsCategories ) | indent 12 }}
           volumes:
 {{ include "hpcc.addConfigMapVolume" .me | indent 10 }}
 {{ include "hpcc.addDataVolume" . | indent 10 }}
 {{ include "hpcc.addDllVolume" . | indent 10 }}
-{{ include "hpcc.addSecretVolumes" (dict "root" .root "categories" .secretsCategoriesSystem ) | indent 10 }}
+{{ include "hpcc.addSecretVolumes" (dict "root" .root "categories" .secretsCategories ) | indent 10 }}
           restartPolicy: Never
       backoffLimit: 0
 {{- end }}
@@ -137,12 +137,12 @@ data:
 {{ include "hpcc.addConfigMapVolumeMount" .me | indent 12 }}
 {{ include "hpcc.addDataVolumeMount" . | indent 12 }}
 {{ include "hpcc.addDllVolumeMount" . | indent 12 }}
-{{ include "hpcc.addSecretVolumeMounts" (dict "root" .root "categories" .secretsCategoriesSystem ) | indent 12 }}
+{{ include "hpcc.addSecretVolumeMounts" (dict "root" .root "categories" .secretsCategories ) | indent 12 }}
           volumes:
 {{ include "hpcc.addConfigMapVolume" .me | indent 10 }}
 {{ include "hpcc.addDataVolume" . | indent 10 }}
 {{ include "hpcc.addDllVolume" . | indent 10 }}
-{{ include "hpcc.addSecretVolumes" (dict "root" .root "categories" .secretsCategoriesSystem ) | indent 10 }}
+{{ include "hpcc.addSecretVolumes" (dict "root" .root "categories" .secretsCategories ) | indent 10 }}
           restartPolicy: Never
       backoffLimit: 0
 
@@ -189,12 +189,12 @@ data:
 {{ include "hpcc.addConfigMapVolumeMount" .me | indent 12 }}
 {{ include "hpcc.addDataVolumeMount" . | indent 12 }}
 {{ include "hpcc.addDllVolumeMount" . | indent 12 }}
-{{ include "hpcc.addSecretVolumeMounts" (dict "root" .root "categories" .secretsCategoriesSystem ) | indent 12 }}
+{{ include "hpcc.addSecretVolumeMounts" (dict "root" .root "categories" .secretsCategories ) | indent 12 }}
           volumes:
 {{ include "hpcc.addConfigMapVolume" .me | indent 10 }}
 {{ include "hpcc.addDataVolume" . | indent 10 }}
 {{ include "hpcc.addDllVolume" . | indent 10 }}
-{{ include "hpcc.addSecretVolumes" (dict "root" .root "categories" .secretsCategoriesSystem ) | indent 10 }}
+{{ include "hpcc.addSecretVolumes" (dict "root" .root "categories" .secretsCategories ) | indent 10 }}
           restartPolicy: Never
       backoffLimit: 0
 
@@ -224,9 +224,8 @@ data:
 
 {{ range $.Values.thor -}}
 {{- if not .disabled -}}
-{{- $secretsCategoriesUser := list  "storage" "ecl" "ecl-user" }}
-{{- $secretsCategoriesSystem := list "system" "ecl" "storage" }}
-{{- $commonCtx := dict "root" $ "me" .  "secretsCategoriesUser" $secretsCategoriesUser "secretsCategoriesSystem" $secretsCategoriesSystem -}}
+{{- $secretsCategories := list "system" "ecl-user" "ecl" "storage" }}
+{{- $commonCtx := dict "root" $ "me" .  "secretsCategories" $secretsCategories -}}
 {{- $_ := set $commonCtx "eclAgentName" (printf "%s-eclagent" .name) -}}
 {{- $_ := set $commonCtx "thorAgentName" (printf "%s-thoragent" .name) -}}
 {{- $_ := set $commonCtx "eclAgentUseChildProcesses" (hasKey . "eclAgentUseChildProcesses" | ternary .eclAgentUseChildProcesses true) }}
@@ -318,12 +317,12 @@ spec:
 {{ include "hpcc.addConfigMapVolumeMount" . | indent 8 }}
 {{ include "hpcc.addDataVolumeMount" $commonCtx | indent 8 }}
 {{ include "hpcc.addDllVolumeMount" $commonCtx | indent 8 }}
-{{ include "hpcc.addSecretVolumeMounts" (dict "root" $ "categories" $secretsCategoriesSystem ) | indent 8 }}
+{{ include "hpcc.addSecretVolumeMounts" (dict "root" $ "categories" $secretsCategories ) | indent 8 }}
       volumes:
 {{ include "hpcc.addConfigMapVolume" . | indent 6 }}
 {{ include "hpcc.addDataVolume" $commonCtx | indent 6 }}
 {{ include "hpcc.addDllVolume" $commonCtx | indent 6 }}
-{{ include "hpcc.addSecretVolumes" (dict "root" $ "categories" $secretsCategoriesSystem ) | indent 6 }}
+{{ include "hpcc.addSecretVolumes" (dict "root" $ "categories" $secretsCategories ) | indent 6 }}
 ---
 kind: ConfigMap
 {{ include "hpcc.thorConfigMap" $commonCtx }}
