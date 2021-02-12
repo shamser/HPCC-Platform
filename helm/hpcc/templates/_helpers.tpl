@@ -670,7 +670,7 @@ Generate vault info
 
 {{/*
 Sasha configmap
-Pass in dict with root and me
+Pass in dict with root, me and secretsCategories
 */}}
 {{- define "hpcc.sashaConfigMap" -}}
 {{- $configMapName := printf "sasha-%s" .me.name -}}
@@ -683,11 +683,7 @@ data:
     sasha:
 {{ toYaml (omit .me "logging") | indent 6 }}
 {{- include "hpcc.generateLoggingConfig" . | indent 6 }}
-{{- $categories := list "system" -}}
-{{- if has "data" .me.access -}}
-{{- $categories := append $categories "storage" -}}
-{{- end }}
-{{ include "hpcc.generateVaultConfig" (dict "root" .root "categories" $categories ) | indent 6 }}
+{{ include "hpcc.generateVaultConfig" (dict "root" .root "categories" .secretsCategories ) | indent 6 }}
 {{- if .me.storage }}
       storagePath: {{ include "hpcc.getVolumeMountPrefix" (dict "root" .root "name" (printf "sasha-%s" .me.name) "me" .me.storage) }}
 {{- end }}
@@ -720,7 +716,7 @@ A template to generate Sasha service containers
 
 {{/*
 A template to generate Sasha service
-Pass in dict with root, me
+Pass in dict with root, me and secretsCategories
 */}}
 {{- define "hpcc.addSashaVolumeMounts" }}
 {{- $serviceName := printf "sasha-%s" .me.name -}}
@@ -739,16 +735,13 @@ Pass in dict with root, me
 {{- if has "dll" .me.access }}
 {{ include "hpcc.addDllVolumeMount" . -}}
 {{- end }}
-{{ include "hpcc.addSecretVolumeMounts" (dict "root" .root "categories" (list "system" ) ) -}}
-{{- if has "data" .me.access -}}
-{{ include "hpcc.addSecretVolumeMounts" (dict "root" .root "categories" (list "storage" ) ) -}}
-{{- end }}
+{{ include "hpcc.addSecretVolumeMounts" (dict "root" .root "categories" .secretsCategories ) -}}
 {{- end -}}
 
 
 {{/*
 A template to generate Sasha service
-Pass in dict with root, me
+Pass in dict with root, me and secretsCategories
 */}}
 {{- define "hpcc.addSashaVolumes" }}
 {{- $serviceName := printf "sasha-%s" .me.name -}}
@@ -767,6 +760,7 @@ Pass in dict with root, me
 {{- if has "dll" .me.access }}
 {{ include "hpcc.addDllVolume" . -}}
 {{- end }}
+{{ include "hpcc.addSecretVolumes" (dict "root" .root "categories" .secretsCategories) -}}
 {{- end -}}
 
 {{/*
