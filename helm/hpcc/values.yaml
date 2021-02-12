@@ -158,6 +158,7 @@ storage:
     # existingClaim: ""
     # forcePermissions: false
 
+
 ## The secrets section contains a set of categories, each of which contain a list of secrets.  The categories deterime which
 ## components have access to the secrets.
 ## For each secret:
@@ -298,6 +299,14 @@ sasha:
   #persistExpiryDefault: 7
   #expiryDefault: 4
   #user: sasha
+
+dfuserver:
+- name: dfuserver
+  enableSNMP: false
+  enableSysLog: true
+  queue: dfuserver_queue
+  monitorqueue: dfuserver_monitor_queue
+  monitorinterval: 900
 
 eclagent:
 - name: hthor
