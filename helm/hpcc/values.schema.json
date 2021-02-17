@@ -33,6 +33,10 @@
             }
           ]
         },
+        "landingZones" : {
+            "type": "array",
+            "items": { "$ref": "#/definitions/storageType" }
+        },
         "planes": {
           "$ref": "#/definitions/storagePlanes"
         }
@@ -296,6 +300,9 @@
     "storageType": {
       "type": "object",
       "properties": {
+        "name" : {
+          "name": "string"
+        },
         "storageSize": {
           "type": "string"
         },
@@ -370,6 +377,11 @@
           "description": "which planes (if any) the data is replicated onto (primarily bare metal)",
           "type": "array",
           "items": { "type": "string" }
+        },
+        "type": {
+          "description": "Type of storage plane",
+          "enum": ["", "lz"],
+          "default": ""
         }
       },
       "required": [ "name", "prefix" ],

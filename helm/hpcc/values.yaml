@@ -55,7 +55,7 @@ security:
 
 ##The elasticsearch component can be customized by modifying helm chart values here.
 elasticsearch:
-  enabled: true
+  enabled: false
   description: "HPCC Managed Elasticsearch"
   ##See https://github.com/elastic/helm-charts/blob/master/elasticsearch/values.yaml for all available options
   antiAffinity: "soft"  #default is HARD, for minimal systems soft might be necessary
@@ -131,6 +131,10 @@ kibana:
 
 storage:
   planes:
+  #- name: localDataPlane
+  #  prefix: /var/lib/hpccsystems/mytest
+  #  pvc: data-localfile-hpcc-localfile-pvc
+  #  type: lz
   #   name: <required>
   #   prefix: <path>                        # Root directory for accessing the plane (if pvc defined), or url to access plane.
   #   numDevices: 1                         # number of devices that are part of the plane
@@ -157,6 +161,11 @@ storage:
     storageClass: ""
     # existingClaim: ""
     # forcePermissions: false
+
+  landingZones:
+    - name: mylz1
+      storageSize: 1Gi
+      storageClass: ""
 
 
 ## The secrets section contains a set of categories, each of which contain a list of secrets.  The categories deterime which
@@ -253,7 +262,7 @@ dali:
 
 sasha:
 - service: wu-archiver
-  #disabled: true
+  disabled: true
   servicePort: 8877
   storage:
     #existingClaim: pvc

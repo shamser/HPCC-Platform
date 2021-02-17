@@ -261,7 +261,21 @@ Pass in dict with root
 {{- $storage := (.root.Values.storage | default dict) -}}
 {{- $planes := ($storage.planes | default list) -}}
 {{- $daliStorage := ($storage.daliStorage | default dict) -}}
-{{ include "hpcc.addVolumeMount" (dict "root" .root "name" "dalistorage-pvc" "path" "dalistorage" "me" $daliStorage) }}
+{{ include "hpcc.addVolumeMount" (dict "root" .root "name" "dalistorage-pvc" "path" "daliStorage" "me" $daliStorage) }}
+{{- end -}}
+
+{{/*
+Add lz volume mount
+Pass in dict with root
+*/}}
+{{- define "hpcc.addLzVolumeMount" -}}
+{{- $storage := (.root.Values.storage | default dict) -}}
+{{- $root := .root -}}
+{{- $planes := ($storage.planes | default list) -}}
+{{- range $lzStorage := $storage.landingZones -}}
+{{- $lzPath :=  $lzStorage.name -}}
+{{ include "hpcc.addVolumeMount" (dict "root" $root "name" $lzStorage.name "path" $lzPath "me" $lzStorage) }}
+{{- end -}}
 {{- end -}}
 
 {{/*
@@ -307,6 +321,21 @@ Pass in dict with root
 {{- $storage := (.root.Values.storage | default dict) -}}
 {{- $daliStorage := ($storage.daliStorage | default dict) -}}
 {{ include "hpcc.addVolume" (dict "root" .root "name" "dalistorage-pvc" "me" $daliStorage) }}
+{{- end -}}
+
+{{/*
+Add lz volume
+Pass in dict with root
+*/}}
+{{- define "hpcc.addLzVolume" -}}
+{{- /*Create local variables which always exist to avoid having to check if intermediate key values exist*/ -}}
+{{- $storage := (.root.Values.storage | default dict) -}}
+{{- $daliStorage := ($storage.daliStorage | default dict) -}}
+{{- $root := .root -}}
+{{- range $lzStorage := $storage.landingZones -}}
+{{- $lzPath :=  $lzStorage.name -}}
+{{ include "hpcc.addVolume" (dict "root" $root "name" $lzStorage.name  "me" $lzStorage) }}
+{{- end -}}
 {{- end -}}
 
 {{/*

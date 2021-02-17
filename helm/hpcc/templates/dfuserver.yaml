@@ -50,8 +50,12 @@ spec:
 {{ include "hpcc.addImageAttrs" $commonCtx | indent 8 }}
         volumeMounts:
 {{ include "hpcc.addConfigMapVolumeMount" . | indent 8 }}
+{{ include "hpcc.addDataVolumeMount" $commonCtx | indent 8 }}
+{{ include "hpcc.addLzVolumeMount" $commonCtx | indent 8 }}
       volumes:
 {{ include "hpcc.addConfigMapVolume" . | indent 6 }}
+{{ include "hpcc.addDataVolume" $commonCtx | indent 6 }}
+{{ include "hpcc.addLzVolume" $commonCtx | indent 6 }}
 ---
 kind: ConfigMap 
 {{ include "hpcc.dfuServerConfigMap" $commonCtx }}
