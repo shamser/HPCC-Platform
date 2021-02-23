@@ -132,4 +132,41 @@ spec:
     - podSelector:
         matchLabels:
           app: eclservices
-          
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dfuserver-server
+spec:
+  podSelector:
+    matchLabels:
+      app: dfuserver
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: ftslave
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: ftslave
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ftslave
+spec:
+  podSelector:
+    matchLabels:
+      app: ftslave
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: dfuserver
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: dfuserver

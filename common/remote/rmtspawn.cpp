@@ -102,74 +102,8 @@ void getRemoteSpawnSSH(
     exeprefix.set(SSHexeprefix);
 }
 
-
-ISocket * spawnRemoteChild(SpawnKind kind, const char * exe, const SocketEndpoint & childEP, unsigned version, const char *logdir, IAbortRequestCallback * abort, const char *extra)
+ISocket * connectToSpawnedWorker(SocketEndpoint & myEP, const SocketEndpoint & childEP, SpawnKind kind, const unsigned port, const unsigned replyTag, unsigned version, IAbortRequestCallback * abort)
 {
-    SocketEndpoint myEP;
-    myEP.setLocalHost(0);
-    unsigned replyTag = ++nextReplyTag;
-    unsigned port = SLAVE_CONNECT_PORT + ((unsigned)kind * NUM_SLAVE_CONNECT_PORT) + getRandom() % NUM_SLAVE_CONNECT_PORT;
-    StringBuffer args;
-
-    myEP.getUrlStr(args);
-    args.append(' ').append(replyTag).append(' ').append((unsigned)kind).append(" ").append(port);
-    if (extra)
-        args.append(' ').append(extra);
-    else
-        args.append(" _");
-    if (logdir)
-        args.append(' ').append(logdir);
-
-
-    StringBuffer cmd;
-    if (SSHexeprefix.isEmpty())
-        cmd.append(exe);
-    else {
-        const char * tail = splitDirTail(exe,cmd);
-        size32_t l = strlen(tail);
-        addPathSepChar(cmd).append(SSHexeprefix);
-        if ((l>4)&&(memcmp(tail+l-4,".exe",4)==0))  // bit odd but want .bat if prefix on windows
-            cmd.append(l-4,tail).append(".bat");
-        else
-            cmd.append(tail);
-    }
-    cmd.append(' ').append(args);
-
-    if (abort && abort->abortRequested())
-    {
-        LOG(MCdetailDebugInfo, unknownJob, "Action aborted before connecting to slave (%3d)", replyTag);
-        return NULL;
-    }
-#ifdef _CONTAINERIZED
-    // TODO: In K8s, this won't work in production as there's only a pool of NUM_SLAVE_CONNECT_PORT (20) ports for all ftslave instances
-    // TODO: replace with K8s job
-    DWORD runcode;
-    if (!invoke_program(cmd.str(), runcode, false))
-        throw MakeStringException(-1,"Error spawning %s", exe);
-#else
-    if (SSHusername.isEmpty())
-    {
-#if defined(_WIN32)
-        //Run the program directly if it is being run on the local machine - so ssh doesn't need to be running...
-        //Change once we have solved the problems with ssh etc. on windows?
-        if (childEP.isLocal())
-        {
-            DWORD runcode;
-            if (!invoke_program(cmd.str(), runcode, false))
-                return NULL;
-        }
-        else
-#endif
-
-            throw MakeStringException(-1,"SSH user not specified");
-    }
-    else {
-        Owned<IFRunSSH> runssh = createFRunSSH();
-        runssh->init(cmd.str(),SSHidentfilename,SSHusername,SSHpasswordenc,SSHtimeout,SSHretries);
-        runssh->exec(childEP,NULL,true); // need workdir? TBD
-    }
-#endif
-
     //Have to now try and connect to the child and get back the port it is listening on
     unsigned attempts = 20;
     SocketEndpoint connectEP(childEP);
@@ -263,6 +197,79 @@ ISocket * spawnRemoteChild(SpawnKind kind, const char * exe, const SocketEndpoin
     return result;
 }
 
+unsigned getNextReplyTag()
+{
+    return ++nextReplyTag;
+}
+
+unsigned getWorkerPort(unsigned kind)
+{
+    return SLAVE_CONNECT_PORT + ((unsigned)kind * NUM_SLAVE_CONNECT_PORT) + getRandom() % NUM_SLAVE_CONNECT_PORT;
+}
+ISocket * spawnRemoteChild(SpawnKind kind, const char * exe, const SocketEndpoint & childEP, unsigned version, const char *logdir, IAbortRequestCallback * abort, const char *extra)
+{
+    SocketEndpoint myEP;
+    myEP.setLocalHost(0);
+    unsigned replyTag = getNextReplyTag();
+    unsigned port = getWorkerPort(kind);
+
+    if (abort && abort->abortRequested())
+    {
+        LOG(MCdetailDebugInfo, unknownJob, "Action aborted before connecting to slave (%3d)", replyTag);
+        return NULL;
+    }
+    StringBuffer args;
+
+    myEP.getUrlStr(args);
+    args.append(' ').append(replyTag).append(' ').append((unsigned)kind).append(" ").append(port);
+    if (extra)
+        args.append(' ').append(extra);
+    else
+        args.append(" _");
+    if (logdir)
+        args.append(' ').append(logdir);
+
+
+    StringBuffer cmd;
+    if (SSHexeprefix.isEmpty())
+        cmd.append(exe);
+    else {
+        const char * tail = splitDirTail(exe,cmd);
+        size32_t l = strlen(tail);
+        addPathSepChar(cmd).append(SSHexeprefix);
+        if ((l>4)&&(memcmp(tail+l-4,".exe",4)==0))  // bit odd but want .bat if prefix on windows
+            cmd.append(l-4,tail).append(".bat");
+        else
+            cmd.append(tail);
+    }
+    cmd.append(' ').append(args);
+
+    if (SSHusername.isEmpty())
+    {
+#if defined(_WIN32)
+        //Run the program directly if it is being run on the local machine - so ssh doesn't need to be running...
+        //Change once we have solved the problems with ssh etc. on windows?
+        if (childEP.isLocal())
+        {
+            DWORD runcode;
+            if (!invoke_program(cmd.str(), runcode, false))
+                return NULL;
+        }
+        else
+#endif
+
+            throw MakeStringException(-1,"SSH user not specified");
+    }
+    else {
+        Owned<IFRunSSH> runssh = createFRunSSH();
+        runssh->init(cmd.str(),SSHidentfilename,SSHusername,SSHpasswordenc,SSHtimeout,SSHretries);
+        runssh->exec(childEP,NULL,true); // need workdir? TBD
+    }
+    return connectToSpawnedWorker(myEP, childEP, kind, port, replyTag, version, abort);
+
+}
+
+
 
 //---------------------------------------------------------------------------
 
@@ -276,6 +283,15 @@ CRemoteParentInfo::CRemoteParentInfo()
 
 bool CRemoteParentInfo::processCommandLine(int argc, char * argv[], StringBuffer &logdir)
 {
+#ifdef _CONTAINERIZED
+    global.setown(loadConfiguration(dfuServerYaml, (const char **) argv, "dfuserver", "DFUSERVER", nullptr, nullptr));
+    printXML(global);
+    if (!global->hasProp("@manager") || !global->hasProp("@replyTag") || !global->hasProp("@port"))
+        return false;
+    parent.set(global->queryProp("@manager"));
+    replyTag = (SpawnKind)atoi(global->queryProp("@replyTag"));
+    port = atoi(global->queryProp("@port"));
+#else
     if (argc <= 4)
         return false;
 
@@ -286,7 +302,7 @@ bool CRemoteParentInfo::processCommandLine(int argc, char * argv[], StringBuffer
     // 5 is extra (only used in logging)
     if (argc>6)
         logdir.clear().append(argv[6]);
-
+#endif        
     return true;
 }
 
@@ -409,6 +425,7 @@ void CRemoteSlave::run(int argc, char * argv[])
     CRemoteParentInfo info;
 
     bool paramsok = info.processCommandLine(argc, argv, logFile);
+#ifndef _CONTAINERIZED
     if (logFile.length()==0) { // not expected! Caller queries logfile location via getConfigurationDirectory
 #ifdef _WIN32
         logFile.append("c:\\HPCCSystems\\logs\\ftslave");
@@ -423,6 +440,9 @@ void CRemoteSlave::run(int argc, char * argv[])
     logFile.append(".log");
     attachStandardFileLogMsgMonitor(logFile.str(), 0, MSGFIELD_STANDARD, MSGAUD_all, MSGCLS_all, TopDetail, false, true, true);
     queryLogMsgManager()->removeMonitor(queryStderrLogMsgHandler());        // no point logging output to screen if run remote!
+#else
+    setupContainerizedLogMsgHandler();
+#endif
     LOG(MCdebugProgress, unknownJob, "Starting %s %s %s %s %s %s %s",slaveName.get(),(argc>1)?argv[1]:"",(argc>2)?argv[2]:"",(argc>3)?argv[3]:"",(argc>4)?argv[4]:"",(argc>5)?argv[5]:"",(argc>6)?argv[6]:"");
 
 
@@ -526,8 +546,6 @@ void CRemoteSlave::run(int argc, char * argv[])
     }
     LOG(MCdebugProgress, unknownJob, "Stopping %s", slaveName.get());
 }
-
-
 
 #if 0
 void checkForRemoteAbort(ICommunicator * communicator, mptag_t tag)

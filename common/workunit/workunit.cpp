@@ -14267,6 +14267,7 @@ bool applyK8sYaml(const char *componentName, const char *wuid, const char *job, 
 #endif
 
     StringBuffer output, error;
+    DBGLOG("yaml:\n%s", jobYaml.str());
     unsigned ret = runExternalCommand(componentName, output, error, "kubectl replace --force -f -", jobYaml.str());
     DBGLOG("kubectl output: %s", output.trimRight().str());
     if (error.length())

@@ -10,12 +10,95 @@ data:
 {{- include "hpcc.generateLoggingConfig" . | indent 6 }}
     global:
 {{ include "hpcc.generateGlobalConfigMap" .root | indent 6 }}
+{{- if not .useChildProcesses }}
+  ftslave-jobspec.yaml: |
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: ftslave-%jobname
+      labels:
+        name: ftslave-%jobname
+        app: ftslave
+    spec:
+      ttlSecondsAfterFinished: 100
+      template:
+        metadata:
+          labels:
+            accessDali: "yes"
+            accessEsp: "yes"
+            app: ftslave
+        spec:
+          serviceAccountName: "hpcc-default"
+          initContainers: 
+            {{- include "hpcc.checkDataMount" . | indent 10 }}
+          containers:
+          - name: ftslave-%jobname
+{{- include "hpcc.addSecurityContext" . | indent 12 }}
+{{ include "hpcc.addImageAttrs" . | indent 12 }}
+{{- include "hpcc.addResources" (dict "me" .ftslaveResources) | indent 12 }}
+            workingDir: /var/lib/HPCCSystems
+            command: [ ftslave ] 
+            args: [
+                        {{ include "hpcc.configArg" .me }},
+                        {{ include "hpcc.daliArg" .root }},
+                        {{ printf "--manager=%s" .me.name | quote }},
+                        "--replyTag=%replyTag",
+                        "--kind=%kind",
+                        {{ printf "--port=%d"  .ftslavePort |quote }},
+                        %args
+                     ]
+            volumeMounts:
+{{ include "hpcc.addConfigMapVolumeMount" .me | indent 12 }}
+{{ include "hpcc.addDataVolumeMount" . | indent 12 }}
+          volumes:
+{{ include "hpcc.addConfigMapVolume" .me | indent 10 }}
+{{ include "hpcc.addDataVolume" . | indent 10 }}
+          restartPolicy: Never
+      backoffLimit: 0
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: ftslave-%jobname
+    spec:
+      selector:
+        name: ftslave-%jobname
+      ports:
+      - port: {{ .ftslavePort }}
+        protocol: TCP
+      type: ClusterIP
+    ---
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: ftslave-%jobname
+    spec:
+      podSelector:
+        matchLabels:
+          app: ftslave
+          job: ftslave-%jobname
+      ingress:
+      - from:
+        - podSelector:
+            matchLabels:
+              app: ftslave
+              job: ftslave-%jobname
+      egress:
+      - to:
+        - podSelector:
+            matchLabels:
+              app: ftslave
+              job: ftslave-%jobname
+
+{{- end }}
 {{- end -}}
 
 {{ range $.Values.dfuserver -}}
 {{- if not .disabled -}}
 {{- $categories := list "system" "storage" -}}
-{{- $commonCtx := dict "root" $ "me" . "categories" $categories }}
+{{- $dfuServerPort := 7070 }}
+{{- $ftslavePort := 6407 }}
+{{- $commonCtx := dict "root" $ "me" . "categories" $categories "ftslavePort" $ftslavePort }}
 {{- $configSHA := include "hpcc.dfuServerConfigMap" $commonCtx | sha256sum }}
 apiVersion: apps/v1
 kind: Deployment
@@ -31,6 +114,7 @@ spec:
       labels:
         run: {{ .name | quote }}
         accessDali: "yes"
+        app: dfuserver
       annotations:
         checksum/config: {{ $configSHA }}
     spec:
@@ -59,5 +143,17 @@ spec:
 kind: ConfigMap
 {{ include "hpcc.dfuServerConfigMap" $commonCtx }}
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .name | quote }}
+spec:
+  ports:
+  - port: {{ $dfuServerPort }}
+    protocol: TCP
+    targetPort: {{ $dfuServerPort }}
+  selector:
+    run: {{ .name | quote }}
+  type: ClusterIP
 {{- end }}
 {{- end }}

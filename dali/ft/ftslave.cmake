@@ -35,6 +35,7 @@ include_directories (
          ./../../system/include 
          ./../../system/jlib
          ./../../system/security/shared
+         ${HPCC_SOURCE_DIR}/common/workunit
     )
 
 HPCC_ADD_EXECUTABLE ( ftslave ${SRCS} )
@@ -47,6 +48,7 @@ target_link_libraries ( ftslave
          remote 
          dalibase 
          environment 
-         dalift 
+         dalift
+         workunit
     )
 

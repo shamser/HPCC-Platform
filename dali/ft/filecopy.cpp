@@ -42,6 +42,7 @@
 #include "jlog.hpp"
 #include "dalienv.hpp"
 #include "ftbase.ipp"
+#include "workunit.hpp"
 
 #define DEFAULT_MAX_CONNECTIONS 800
 #define PARTITION_RECOVERY_LIMIT 1000
@@ -323,7 +324,44 @@ bool FileTransferThread::performTransfer()
 
     LOG(MCdebugProgressDetail, job, "Start generate part %s [%p]", url.str(), this);
     StringBuffer tmp;
+#ifdef _CONTAINERIZED
+    unsigned replyTag = getNextReplyTag();
+    unsigned port = 6407; //getWorkerPort(SPAWNdfu); 
+    StringBuffer strMyIp;
+    SocketEndpoint myEP, childEP;
+    myEP.setLocalHost(0);
+    myEP.getUrlStr(strMyIp);
+    VStringBuffer jobName("%s-%u", wuid.str(), replyTag);
+    VStringBuffer epHostName("ftslave-%s", jobName.str());
+    applyK8sYaml("ftslave", wuid, jobName.str(), "jobspec",
+                 { { "%replyTag", std::to_string(replyTag)},
+                   {"%kind", std::to_string((int)SPAWNdfu)} },
+                 false);
+    unsigned retry = 10;
+    Sleep(100); // time for slave to start 
+    for (; retry; retry--)
+    {
+        try {
+            if (childEP.set(epHostName, port))
+            {
+                DBGLOG("%s success", epHostName.str());
+                break;
+            }
+        }
+        catch (IException * e)
+        {
+            e->Release();
+        }
+        DBGLOG("%s failed", epHostName.str());
+        Sleep(500); // time for slave to start 
+    }
+    if (!retry)
+        throwError1(DFTERR_FailedStartSlave, epHostName.str());
+    DBGLOG("connectToSpawnedWorker");
+    Owned<ISocket> socket = connectToSpawnedWorker(myEP, childEP, SPAWNdfu, port, replyTag, DAFT_VERSION, this);
+#else
     Owned<ISocket> socket = spawnRemoteChild(SPAWNdfu, sprayer.querySlaveExecutable(ep, tmp), ep, DAFT_VERSION, queryFtSlaveLogDir(), this, wuid);
+#endif
     if (socket)
     {
         MemoryBuffer msg;

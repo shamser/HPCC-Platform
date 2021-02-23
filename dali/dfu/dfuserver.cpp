@@ -99,15 +99,6 @@ IPropertyTree *readOldIni()
 }
 #endif
 
-static constexpr const char * defaultYaml = R"!!(
-version: "1.0"
-dfuserver:
-  name: dfuserver
-  monitorinterval: 900
-  transferBufferSize: 65536
-  maxJobs: 1
-)!!";
-
 int main(int argc, const char *argv[])
 {
     for (unsigned i=0;i<(unsigned)argc;i++) {
@@ -126,7 +117,7 @@ int main(int argc, const char *argv[])
 
     try
     {
-        globals.setown(loadConfiguration(defaultYaml, argv, "dfuserver", "DFUSERVER", "dfuserver.xml", nullptr));
+        globals.setown(loadConfiguration(dfuServerYaml, argv, "dfuserver", "DFUSERVER", "dfuserver.xml", nullptr));
     }
     catch (IException * e)
     {

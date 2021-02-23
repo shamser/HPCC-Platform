@@ -39,6 +39,10 @@ enum SpawnKind
 interface IAbortRequestCallback;
 
 extern REMOTE_API ISocket * spawnRemoteChild(SpawnKind kind, const char * exe, const SocketEndpoint & remoteEP, unsigned version, const char *logdir, IAbortRequestCallback * abort = NULL, const char *extra=NULL);
+extern REMOTE_API ISocket * connectToSpawnedWorker(SocketEndpoint & myEP, const SocketEndpoint & childEP, SpawnKind kind, const unsigned port, const unsigned replyTag, unsigned version, IAbortRequestCallback * abort);
+extern REMOTE_API unsigned getWorkerPort(unsigned kind);
+extern REMOTE_API unsigned getNextReplyTag();
+
 extern REMOTE_API void setRemoteSpawnSSH(
                 const char *identfilename,
                 const char *username, // if NULL then disable SSH
@@ -65,6 +69,7 @@ public:
     bool sendReply(unsigned version);
 
 public:
+    Owned<IPropertyTree> global;
     Owned<ISocket>      socket;
     SocketEndpoint      parent;
     unsigned            replyTag;
@@ -90,6 +95,17 @@ protected:
     bool            stayAlive;
     unsigned        version;
 };
+
+#ifdef _CONTAINERIZED
+static constexpr const char * dfuServerYaml = R"!!(
+version: "1.0"
+dfuserver:
+  name: dfuserver
+  monitorinterval: 900
+  transferBufferSize: 65536
+  maxJobs: 1
+)!!";
+#endif
 
 
 //extern REMOTE_API void checkForRemoteAbort(ICommunicator * communicator, mptag_t tag);

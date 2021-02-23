@@ -59,5 +59,6 @@ target_link_libraries ( dalift
          dafsclient
          dalibase 
          environment 
+         workunit
     )
 
