@@ -311,12 +311,13 @@ Pass in dict with root
 
 {{/*
 Add the secret volume mounts for a component
+Pass in dict with root and secretsCategories
 */}}
 {{- define "hpcc.addSecretVolumeMounts" -}}
 {{- $component := .component -}}
-{{- $categories := .categories -}}
+{{- $secretsCategories := .secretsCategories -}}
 {{- range $category, $key := .root.Values.secrets -}}
- {{- if (has $category $categories) -}}
+ {{- if (has $category $secretsCategories) -}}
 {{- range $secretid, $secretname := $key -}}
 - name: secret-{{ $secretid }}
   mountPath: /opt/HPCCSystems/secrets/{{ $category }}/{{ $secretid }}
@@ -327,17 +328,18 @@ Add the secret volume mounts for a component
 
 {{/*
 Add Secret volume for a component
+Pass in dict with root and secretsCategories
 */}}
 {{- define "hpcc.addSecretVolumes" -}}
 {{- $component := .component -}}
-{{- $categories := .categories -}}
+{{- $secretsCategories := .secretsCategories -}}
 {{- range $category, $key := .root.Values.secrets -}}
-{{- if (has $category $categories) -}}
+{{- if (has $category $secretsCategories) -}}
 {{- range $secretid, $secretname := $key }}
 - name: secret-{{ $secretid }}
   secret:
     secretName: {{ $secretname }}
-{{ end -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
@@ -369,10 +371,10 @@ readinessProbe:
 Generate vault info
 */}}
 {{- define "hpcc.generateVaultConfig" -}}
-{{- $categories := .categories -}}
+{{- $secretsCategories := .secretsCategories -}}
 vaults:
 {{- range  $categoryname, $category := .root.Values.vaults -}}
- {{- if (has $categoryname $categories) }}
+ {{- if (has $categoryname $secretsCategories) }}
   {{ $categoryname }}:
   {{- range $vault := . }}
     - name: {{ $vault.name }}
@@ -683,7 +685,7 @@ data:
     sasha:
 {{ toYaml (omit .me "logging") | indent 6 }}
 {{- include "hpcc.generateLoggingConfig" . | indent 6 }}
-{{ include "hpcc.generateVaultConfig" (dict "root" .root "categories" .secretsCategories ) | indent 6 }}
+{{ include "hpcc.generateVaultConfig" . | indent 6 }}
 {{- if .me.storage }}
       storagePath: {{ include "hpcc.getVolumeMountPrefix" (dict "root" .root "name" (printf "sasha-%s" .me.name) "me" .me.storage) }}
 {{- end }}
@@ -716,7 +718,7 @@ A template to generate Sasha service containers
 
 {{/*
 A template to generate Sasha service
-Pass in dict with root, me and secretsCategories
+Pass in dict with root and me
 */}}
 {{- define "hpcc.addSashaVolumeMounts" }}
 {{- $serviceName := printf "sasha-%s" .me.name -}}
@@ -734,14 +736,13 @@ Pass in dict with root, me and secretsCategories
 {{- end }}
 {{- if has "dll" .me.access }}
 {{ include "hpcc.addDllVolumeMount" . -}}
-{{- end }}
-{{ include "hpcc.addSecretVolumeMounts" (dict "root" .root "categories" .secretsCategories ) -}}
 {{- end -}}
+{{- end }}
 
 
 {{/*
 A template to generate Sasha service
-Pass in dict with root, me and secretsCategories
+Pass in dict with root and me
 */}}
 {{- define "hpcc.addSashaVolumes" }}
 {{- $serviceName := printf "sasha-%s" .me.name -}}
@@ -760,7 +761,6 @@ Pass in dict with root, me and secretsCategories
 {{- if has "dll" .me.access }}
 {{ include "hpcc.addDllVolume" . -}}
 {{- end }}
-{{ include "hpcc.addSecretVolumes" (dict "root" .root "categories" .secretsCategories) -}}
 {{- end -}}
 
 {{/*

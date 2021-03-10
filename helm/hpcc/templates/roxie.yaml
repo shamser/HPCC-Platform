@@ -15,7 +15,7 @@ data:
       topologyServers: "{{ .toponame }}:{{ .topoport }}"
       resolveLocally: false
 {{- include "hpcc.generateLoggingConfig" (dict "root" .root "me" .me) | indent 6 }}
-{{ include "hpcc.generateVaultConfig" (dict "root" .root "categories" .secretsCategories ) | indent 6 }}
+{{ include "hpcc.generateVaultConfig" . | indent 6 }}
     global:
 {{ include "hpcc.generateGlobalConfigMap" .root | indent 6 }}
 {{- end -}}
@@ -182,12 +182,12 @@ spec:
 {{ include "hpcc.addConfigMapVolumeMount" $roxie | indent 8 }}
 {{ include "hpcc.addDataVolumeMount" $commonCtx | indent 8 }}
 {{ include "hpcc.addDllVolumeMount" $commonCtx | indent 8 }}
-{{ include "hpcc.addSecretVolumeMounts" (dict "root" $ "categories" $secretsCategories ) | indent 8 }}
+{{ include "hpcc.addSecretVolumeMounts" $commonCtx | indent 8 }}
       volumes:
 {{ include "hpcc.addConfigMapVolume" $roxie | indent 6 }}
 {{ include "hpcc.addDataVolume" $commonCtx | indent 6 }}
 {{ include "hpcc.addDllVolume" $commonCtx | indent 6 }}
-{{ include "hpcc.addSecretVolumes" (dict "root" $ "categories" $secretsCategories ) | indent 6 }}
+{{ include "hpcc.addSecretVolumes" $commonCtx | indent 6 }}
 ---
 
 {{ end -}}
@@ -251,12 +251,12 @@ spec:
 {{ include "hpcc.addConfigMapVolumeMount" $roxie | indent 8 }}
 {{ include "hpcc.addDataVolumeMount" $commonCtx | indent 8 }}
 {{ include "hpcc.addDllVolumeMount" $commonCtx | indent 8 }}
-{{ include "hpcc.addSecretVolumeMounts" (dict "root" $ "categories" $secretsCategories ) | indent 8 }}
+{{ include "hpcc.addSecretVolumeMounts" $commonCtx | indent 8 }}
       volumes:
 {{ include "hpcc.addConfigMapVolume" $roxie | indent 6 }}
 {{ include "hpcc.addDataVolume" $commonCtx | indent 6 }}
 {{ include "hpcc.addDllVolume" $commonCtx | indent 6 }}
-{{ include "hpcc.addSecretVolumes" (dict "root" $ "categories" $secretsCategories ) | indent 6 }}
+{{ include "hpcc.addSecretVolumes" $commonCtx | indent 6 }}
 
 ---
 
