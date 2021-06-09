@@ -1562,7 +1562,7 @@ bool StatsScopeId::setScopeText(const char * text, const char * * _next)
     case FileScopePrefix[0]:
         if (MATCHES_CONST_PREFIX(text, FileScopePrefix))
         {
-            setFileId(text+ strlen(FileScopePrefix));
+            setFileId(text+strlen(FileScopePrefix));
             if (_next)
                 *_next = text + strlen(text);
             return true;

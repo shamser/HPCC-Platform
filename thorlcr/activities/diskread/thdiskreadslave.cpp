@@ -403,6 +403,7 @@ void CDiskRecordPartHandler::open()
 
 void CDiskRecordPartHandler::close(CRC32 &fileCRC)
 {
+    DBGLOG("CDiskRecordPartHandler::close subfile %u logicalFilename %s filename %s", subfile, logicalFilename.str(), filename.str());
     Owned<IExtRowStream> partStream;
     {
         CriticalBlock block(inputCs);
@@ -410,7 +411,28 @@ void CDiskRecordPartHandler::close(CRC32 &fileCRC)
     }
     if (partStream)
     {
+        DBGLOG("CDiskRecordPartHandler::close partStream");
+        unsigned __int64 prevNumDiskReads = 0;
+        ISuperFileDescriptor * superFDesc =  partDesc->queryOwner().querySuperFileDescriptor();
+        if (superFDesc)
+            prevNumDiskReads = fileStats.queryStatistic(StNumDiskReads).get();
         mergeStats(fileStats, partStream);
+        StringBuffer fileScope;
+        if (superFDesc)
+        {
+            unsigned subfile, lnum;
+            superFDesc->mapSubPart(partDesc->queryPartIndex(), subfile, lnum);
+            fileScope.appendf("sf%u", subfile);
+            DBGLOG("mapSubPart subfile: %u", subfile);
+        }
+        else
+        {
+            fileScope.appendf("df");
+        }
+        unsigned __int64 numDiskReads = fileStats.queryStatistic(StNumDiskReads).get()-prevNumDiskReads;
+        StatsScopeId scope(SSTfile, fileScope);
+        CRuntimeStatisticCollection & nested = fileStats.registerNested(scope, nestedFileStatistics);
+        nested.sumStatistic(StNumDiskReads, numDiskReads);
         partStream->stop(&fileCRC);
     }
 }

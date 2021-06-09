@@ -69,6 +69,7 @@ CDiskPartHandlerBase::CDiskPartHandlerBase(CDiskReadSlaveActivityBase &_activity
     checkFileCrc = activity.checkFileCrc;
     which = 0;
     eoi = false;
+    subfile = 0;
     kindStr = activityKindStr(activity.queryContainer().getKind());
     compressed = blockCompressed = firstInGroup = checkFileCrc = false;
 
@@ -85,13 +86,13 @@ void CDiskPartHandlerBase::setPart(IPartDescriptor *_partDesc)
     fileBaseOffset = partDesc->queryProperties().getPropInt64("@offset");
 
     which = partDesc->queryPartIndex();
+    subfile = 0;
     if (0 != (activity.helper->getFlags() & TDRfilenamecallback)) // only get/serialize if using virtual file name fields
     {
         IFileDescriptor &fileDesc = partDesc->queryOwner();
         ISuperFileDescriptor *superFDesc = fileDesc.querySuperFileDescriptor();
         if (superFDesc)
         {
-            unsigned subfile;
             unsigned lnum;
             if (superFDesc->mapSubPart(which, subfile, lnum))
                 logicalFilename.set(activity.queryLogicalFilename(subfile));
@@ -170,6 +171,7 @@ void CDiskPartHandlerBase::stop()
         return;
     if (!eoi)
         checkFileCrc = false; // cannot perform file CRC if diskread has not read whole file.
+
     CRC32 fileCRC;
     close(fileCRC);
     if (!activity.abortSoon && checkFileCrc)
@@ -228,6 +230,7 @@ void CDiskReadSlaveActivityBase::init(MemoryBuffer &data, MemoryBuffer &slaveDat
         StringAttr subfile;
         data.read(subfile);
         subfileLogicalFilenames.append(subfile);
+        DBGLOG("CDiskReadSlaveActivityBase::init subfile %s", subfile.str());
     }
     unsigned parts;
     data.read(parts);
@@ -297,14 +300,6 @@ void CDiskReadSlaveActivityBase::serializeStats(MemoryBuffer &mb)
     {
         partHandler->gatherStats(activeStats);
         stats.merge(activeStats);
-    }
-    stats.setStatistic(StNumDiskRowsRead, diskProgress);
-    if (!isEmptyString(logicalFilename))
-    {
-        unsigned __int64 numDiskReads = activeStats.getStatisticValue(StNumDiskReads);
-        StatsScopeId scope(SSTfile, logicalFilename);
-        CRuntimeStatisticCollection & nested = stats.registerNested(scope, nestedFileStatistics);
-        nested.sumStatistic(StNumDiskReads, numDiskReads);
     }
     PARENT::serializeStats(mb);
 }
@@ -534,11 +529,10 @@ void CDiskWriteSlaveActivityBase::serializeStats(MemoryBuffer &mb)
     }
     stats.setStatistic(StPerReplicated, replicateDone);
 
-    const char * logicalFilename = dlfn.get();
     unsigned __int64 numDiskWrites = stats.getStatisticValue(StNumDiskWrites);
-    StatsScopeId scope(SSTfile, logicalFilename);
+    StatsScopeId scope(SSTfile, "df");
     CRuntimeStatisticCollection & nested = stats.registerNested(scope, nestedFileStatistics);
-    nested.sumStatistic(StNumDiskWrites, numDiskWrites);
+    nested.sumStatistic(StNumDiskWrites, numDiskWrites+1000);
 
     PARENT::serializeStats(mb);
 }

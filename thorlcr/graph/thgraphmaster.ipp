@@ -62,6 +62,15 @@ public:
         for (unsigned n=0; n < nodeStats.size(); n++) // NB: size is = queryClusterWidth()
             summary.merge(*nodeStats[n], n);
         summary.recordStatistics(result);
+StringBuffer t;
+summary.toXML(t);
+DBGLOG("CThorStatsCollection %s", t.str());
+    }
+    StringBuffer & dbgXML(StringBuffer & t)
+    {
+        CRuntimeSummaryStatisticCollection summary(mapping);
+        summary.toXML(t);
+        return t;
     }
 };
 

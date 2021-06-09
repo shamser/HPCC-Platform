@@ -135,12 +135,31 @@ class CCsvReadSlaveActivity : public CDiskReadSlaveActivityBase
         }
         virtual void close(CRC32 &fileCRC)
         {
+            DBGLOG("CCsvPartHandler::close()");
             Owned<IFileIO> partFileIO;
             {
                 CriticalBlock block(inputCs);
                 partFileIO.setown(iFileIO.getClear());
             }
+            unsigned __int64 prevNumDiskReads = 0;
+            if (activity.superFDesc)
+                prevNumDiskReads = fileStats.queryStatistic(StNumDiskReads).get();
             mergeStats(fileStats, partFileIO);
+            StringBuffer fileScope;
+            if (activity.superFDesc)
+            {
+                unsigned subfile, lnum;
+                activity.superFDesc->mapSubPart(partDesc->queryPartIndex(), subfile, lnum);
+                fileScope.appendf("sf%u", subfile);
+            }
+            else
+            {
+                 fileScope.append("df");
+            }
+            unsigned __int64 numDiskReads = fileStats.queryStatistic(StNumDiskReads).get() - prevNumDiskReads;
+            StatsScopeId scope(SSTfile, fileScope);
+            CRuntimeStatisticCollection & nested = fileStats.registerNested(scope, nestedFileStatistics);
+            nested.sumStatistic(StNumDiskReads, numDiskReads);
             partFileIO.clear();
             inputStream.clear();
             fileCRC = inputCRC;

@@ -540,7 +540,9 @@ void CMasterActivity::getEdgeStats(IStatisticGatherer & stats, unsigned idx)
 void CMasterActivity::done()
 {
     CActivityBase::done();
-
+DBGLOG("CMasterActivity::done()");
+//StringBuffer t;
+//DBGLOG("CMasterActivity::done() statsCollection %s", statsCollection.dbgXML(t).str());
     StatsScopeId rootScope(SSTfile, 0U);
     Owned<IStatisticGatherer> fileStats;
     ForEachItemIn(s, readFiles)

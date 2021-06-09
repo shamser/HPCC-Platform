@@ -212,12 +212,16 @@ void CWriteMasterBase::publish()
     rootScope.setFileId(logicalFileName);
     fileStats.setown(createStatisticsGatherer(SCTall, "", rootScope));
     statsCollection.getStats(*fileStats);
+StringBuffer t;
+DBGLOG("CWriteMasterBase::publish() statsCollection %s", statsCollection.dbgXML(t).str());
     Owned<IStatisticCollection> stats = fileStats->getResult();
     Owned<IStatisticCollectionIterator> iter = &stats->getScopes(nullptr, false);
     __int64 numDiskWrites = 0;
     ForEach(*iter)
     {
+        StringBuffer tmp;
         IStatisticCollection & cur = iter->query();
+        DBGLOG("scope %s %llu", cur.getFullScope(tmp).str(), cur.queryStatistic(StNumDiskWrites) );
         numDiskWrites += cur.queryStatistic(StNumDiskWrites);
     }
 

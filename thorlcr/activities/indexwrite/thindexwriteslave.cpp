@@ -245,7 +245,25 @@ public:
             builder.clear();
             if (builderIFileIO)
             {
+                ISuperFileDescriptor * superFDesc =  partDesc.queryOwner().querySuperFileDescriptor();
+                StringBuffer fileScope;
+                if (superFDesc)
+                {
+                    unsigned subfile, lnum;
+                    superFDesc->mapSubPart(partDesc.queryPartIndex(), subfile, lnum);
+                    fileScope.appendf("ksf%u", subfile);
+                }
+                else
+                {
+                    fileScope.appendf("kf");
+                }
                 numDiskWrites = builderIFileIO->getStatistic(StNumDiskWrites);
+                StatsScopeId scope(SSTfile, fileScope);
+                CRuntimeStatisticCollection & nested = stats.registerNested(scope, nestedFileStatistics);
+                nested.sumStatistic(StNumDiskWrites, numDiskWrites);
+                StringBuffer t;
+                stats.toXML(t);
+                DBGLOG("IndexWriteSlaveActivity::close() %s", t.str());
                 builderIFileIO->close();
                 builderIFileIO.clear();
             }
@@ -666,10 +684,14 @@ public:
     }
     virtual void serializeStats(MemoryBuffer &mb) override
     {
-        StatsScopeId scope(SSTfile, logicalFilename.str());
-        CRuntimeStatisticCollection & nested = stats.registerNested(scope, nestedFileStatistics);
-        nested.sumStatistic(StNumDiskWrites, numDiskWrites);
+        //StatsScopeId scope(SSTfile, "kf");
+        //CRuntimeStatisticCollection & nested = stats.registerNested(scope, nestedFileStatistics);
+        //nested.sumStatistic(StNumDiskWrites, numDiskWrites);
+
         stats.setStatistic(StPerReplicated, replicateDone);
+StringBuffer t;
+stats.toXML(t);
+DBGLOG("IndexWriteSlaveActivity::serializeStats() %s", t.str());
         PARENT::serializeStats(mb);
     }
 

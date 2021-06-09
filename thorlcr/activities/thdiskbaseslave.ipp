@@ -41,6 +41,7 @@ protected:
     CRuntimeStatisticCollection fileStats;
     CDiskReadSlaveActivityBase &activity;
     CriticalSection inputCs; // Prevent input from being changed while mergeStats() or other functions are executing
+    unsigned subfile;
 
     bool eoi;
 public:
@@ -57,7 +58,7 @@ public:
         merged.merge(fileStats);
     }
     virtual unsigned __int64 queryProgress() { return 0; }
-
+    virtual unsigned querySubfile() const { return subfile; }
 // IThorDiskCallback
     virtual offset_t getFilePosition(const void * row);
     virtual offset_t getLocalFilePosition(const void * row);
