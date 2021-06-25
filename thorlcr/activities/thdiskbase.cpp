@@ -82,6 +82,16 @@ void CDiskReadMasterBase::init()
                 }
             }
         }
+        if (!(helper->getFlags() & TDXtemporary))
+        {
+            IDistributedSuperFile *super = file->querySuperFile();
+            if (super)
+            {
+                unsigned numsubs = super->numSubFiles();
+                for (unsigned i=0; i<numsubs; i++)
+                    subFileStats.emplace_back(new CThorStatsCollection(diskReadRemoteStatistics));
+            }
+        }
         void *ekey;
         size32_t ekeylen;
         helper->getEncryptKey(ekeylen,ekey);
@@ -116,6 +126,32 @@ void CDiskReadMasterBase::serializeSlaveData(MemoryBuffer &dst, unsigned slave)
         CSlavePartMapping::serializeNullMap(dst);
 }
 
+void CDiskReadMasterBase::done()
+{
+    if (!subFileStats.empty())
+    {
+        unsigned numSubFiles = subFileStats.size();
+        for (unsigned i=0; i<numSubFiles; i++)
+        {
+            IDistributedFile *file = queryReadFile(i);
+            file->addAttrValue("@numDiskReads", subFileStats[i]->getStatisticSum(StNumDiskReads));
+        }
+    }
+    else
+    {
+        IDistributedFile *file = queryReadFile(0);
+        file->addAttrValue("@numDiskReads", statsCollection.getStatisticSum(StNumDiskReads));
+    }
+    CMasterActivity::done();
+}
+void CDiskReadMasterBase::deserializeStats(unsigned node, MemoryBuffer &mb)
+{
+    CMasterActivity::deserializeStats(node, mb);
+    unsigned numSubFiles;
+    mb.read(numSubFiles);
+    for(unsigned i=0; i<numSubFiles; i++)
+        subFileStats[i]->deserialize(node, mb);
+}
 /////////////////
 
 void CWriteMasterBase::init()

@@ -92,6 +92,7 @@ protected:
     Owned<CDiskPartHandlerBase> partHandler;
     Owned<IExpander> eexp;
     rowcount_t diskProgress = 0;
+    std::vector<OwnedPtr<CRuntimeStatisticCollection>> subFileStats;
 
 public:
     CDiskReadSlaveActivityBase(CGraphElementBase *_container, IHThorArg *_helper);
@@ -104,6 +105,7 @@ public:
     virtual void init(MemoryBuffer &data, MemoryBuffer &slaveData);
     virtual void kill();
     virtual void serializeStats(MemoryBuffer &mb);
+    virtual void mergeSubFileStats(IPartDescriptor *partDesc, IExtRowStream *partStream);
 friend class CDiskPartHandlerBase;
 };
 
