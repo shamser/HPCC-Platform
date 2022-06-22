@@ -22,7 +22,9 @@
 #include "jlib.hpp"
 #include "jio.hpp"
 #include <math.h>
-
+#include <azure/core.hpp>
+#include <azure/storage/blobs.hpp>
+#include <azure/storage/files/shares.hpp>
 #include "jmutex.hpp"
 #include "jfile.hpp"
 #include "jsocket.hpp"
@@ -1513,6 +1515,36 @@ bool FileSprayer::usePushWholeOperation() const
     return targets.item(0).filename.isUrl();
 }
 
+bool FileSprayer::useAPICopy()
+{
+#ifdef _CONTAINERIZED
+    DBGLOG("FileSprayer::useAPICopy");
+    bool needCalcCRC = calcCRC();
+    if (needCalcCRC && !sources.item(0).hasCRC)
+        return false;
+
+    StringBuffer targetClusterName, sourceClusterName;
+    distributedTarget->getClusterName(0, targetClusterName);
+    Owned<IStoragePlane> targetStoragePlane = getDataStoragePlane(targetClusterName.str(), false);
+    if (targetStoragePlane==nullptr) return false;
+    distributedSource->getClusterName(0, sourceClusterName);
+    Owned<IStoragePlane> sourceStoragePlane = getDataStoragePlane(sourceClusterName.str(), false);
+    if (sourceStoragePlane==nullptr) return false;
+    if (!targetStoragePlane->hasStorageApi()||!sourceStoragePlane->hasStorageApi())
+        return false;
+    DBGLOG("FileSprayer::useAPICopy target %s source %s", targetClusterName.str(), sourceClusterName.str());
+    StorageType stTarget = targetStoragePlane->getStorageType();
+    StorageType stSource = sourceStoragePlane->getStorageType();
+    DBGLOG("file type target %d, source %d", (int)stTarget, (int)stSource);
+    if (stTarget==StorageType::StorageTypeAzureFile || stTarget==StorageType::StorageTypeAzureBlob)
+    {
+        if (stSource==StorageType::StorageTypeAzureFile || stSource==StorageType::StorageTypeAzureBlob)
+            return true;
+    }
+#endif
+    return false;
+}
+
 bool FileSprayer::canRenameOutput() const
 {
     return targets.item(0).filename.queryFileSystemProperties().canRename;
@@ -2596,6 +2628,184 @@ void FileSprayer::pushParts()
     performTransfer();
 }
 
+static StringBuffer & buildAzureStorageURIBase(IStoragePlane * storagePlane, StringBuffer & uri)
+{
+    const char *accountName = storagePlane->queryStorageApiAccount();
+    uri.appendf("https://%s", accountName);
+
+    if (storagePlane->getStorageType()==StorageType::StorageTypeAzureFile)
+        uri.append(".file");
+    else
+        uri.append(".blob");
+    uri.appendf(".core.windows.net/%s", storagePlane->queryStorageContainer());
+
+    return uri;
+}
+
+using namespace Azure::Storage;
+using namespace Azure::Storage::Files;
+using namespace Azure::Storage::Blobs;
+
+bool FileSprayer::transferUsingAPI()
+{
+    // N.B. ensure api copy is possible by making sure useAPICopy() has returned true
+    // TODO:
+    // 1) bool needCalcCRC = calcCRC(); // How should CRC be handled?
+    // 2) file renames
+    // 3) allow access using "AZURE_ACCOUNT_KEY" env variable
+    // 4) allow access using connection string
+    // 5) support striping with multiple containers/file shares
+    StringBuffer targetClusterName, sourceClusterName;
+    distributedTarget->getClusterName(0, targetClusterName);
+    Owned<IStoragePlane> targetPlane = getDataStoragePlane(targetClusterName.str(), false);
+    distributedSource->getClusterName(0, sourceClusterName);
+    Owned<IStoragePlane> sourcePlane = getDataStoragePlane(sourceClusterName.str(), false);
+
+    // Source
+    StringBuffer sourceBaseURI, sourceSAStoken;
+    buildAzureStorageURIBase(sourcePlane, sourceBaseURI);
+    sourcePlane->querySASToken(sourceSAStoken);
+    const char * sourcePrefix = sourcePlane->queryPrefix();
+    unsigned sourcePrefixLength = isEmptyString(sourcePrefix)?0:strlen(sourcePrefix);
+    StringBuffer sastoken;
+
+    // Target
+    StringBuffer targetBaseURI, targetSAStoken;
+    buildAzureStorageURIBase(targetPlane, targetBaseURI);
+    targetPlane->querySASToken(targetSAStoken);
+    const char * targetPrefix = targetPlane->queryPrefix();
+    unsigned targetPrefixLength = isEmptyString(targetPrefix)?0:strlen(targetPrefix);
+    auto targetType = targetPlane->getStorageType();
+
+    std::vector<Shares::StartFileCopyOperation> fileCopyOp;
+    std::vector<StartBlobCopyOperation> blobCopyOp;
+    std::vector<unsigned> copyingInProgress;
+    if (targetType==StorageType::StorageTypeAzureFile)
+        fileCopyOp.reserve(partition.length());
+    else
+        blobCopyOp.reserve(partition.length());
+    try
+    {
+         ForEachItemIn(idx, partition)
+         {
+            PartitionPoint & cur = partition.item(idx);
+            OutputProgress & curprogress= progress.item(idx);
+
+            if (curprogress.status==OutputProgress::StatusCopied)
+                continue;
+
+            StringBuffer sourceURI(sourceBaseURI);
+            StringBuffer sourcePath;
+            cur.inputName.getPathInStoragePlane(sourcePath);
+            StringBuffer tmp;
+            sourceURI.appendf("/%s/%s",  encode_url(tmp, sourcePath.str()).str(), sourceSAStoken.str());
+
+            StringBuffer targetURI(targetBaseURI);
+            StringBuffer targetPath;
+            cur.outputName.getPathInStoragePlane(targetPath);
+            targetURI.appendf("/%s/%s", encode_url(tmp.clear(), targetPath.str()).str(), targetSAStoken.str());
+            if (targetType==StorageType::StorageTypeAzureFile)
+            {
+                DBGLOG("source : %s", sourceURI.str());
+                DBGLOG("target : %s", targetURI.str());
+                auto fileClient = Shares::ShareFileClient(targetURI.str());
+                fileCopyOp.emplace_back(std::move(fileClient.StartCopy(sourceURI.str())));
+            }
+            else
+            {
+                auto blobClient = BlobClient(targetURI.str());
+                blobCopyOp.emplace_back(std::move(blobClient.StartCopyFromUri(sourceURI.str())));
+            }
+            copyingInProgress.emplace_back(idx);
+            curprogress.status =  OutputProgress::StatusBegin;
+            curprogress.numReads++;
+            curprogress.numWrites++;
+         }
+    }
+    catch (const Azure::Core::RequestFailedException& e)
+    {
+        IERRLOG("transferUsingAPI failed: %s (code %d)", e.ReasonPhrase.c_str(), static_cast<int>(e.StatusCode));
+        return false;
+    }
+    while (1)
+    {
+        bool anyRemaining = false;
+        auto itProgress = std::begin(copyingInProgress);
+        if (targetType==StorageType::StorageTypeAzureFile)
+        {
+            for(auto & f: fileCopyOp)
+            {
+                OutputProgress & curprogress = progress.item(*itProgress);
+                ++itProgress;
+                if (curprogress.status==OutputProgress::StatusCopied)
+                    continue;
+                try
+                {
+                    auto response = &f.Poll();
+                    auto props = f.Value();
+                    auto status = props.CopyStatus.HasValue()?props.CopyStatus.Value():(Shares::Models::CopyStatus::Pending);
+                    curprogress.outputLength = props.FileSize;
+                    curprogress.resultTime.setString(props.LastModified.ToString().c_str());
+                    if (status==Shares::Models::CopyStatus::Success)
+                    {
+                        curprogress.status = OutputProgress::StatusCopied;
+                        curprogress.outputCRC = curprogress.inputCRC;
+                    }
+                    else if (status==Shares::Models::CopyStatus::Pending)
+                    {
+                        curprogress.status =  OutputProgress::StatusActive;
+                        anyRemaining=true;
+                    }
+                    else
+                        return false; //Aborted or Failed -> return false to use older copy method
+                }
+                catch(const Azure::Core::RequestFailedException& e)
+                {
+                    IERRLOG("transferUsingAPI .poll() failed: %s (code %d)", e.ReasonPhrase.c_str(), static_cast<int>(e.StatusCode));
+                    return false;
+                }
+            }
+        }
+        else
+        {
+            for(auto & b: blobCopyOp)
+            {
+                OutputProgress & curprogress= progress.item(*itProgress);
+                ++itProgress;
+                if (curprogress.status==OutputProgress::StatusCopied)
+                    continue;
+                try
+                {
+                    auto response = &b.Poll();
+                    auto props = b.Value();
+                    auto status = props.CopyStatus.HasValue()?props.CopyStatus.Value():(Blobs::Models::CopyStatus::Pending);
+                    curprogress.outputLength = props.BlobSize;
+                    curprogress.resultTime.setString(props.LastModified.ToString().c_str());
+                    if (status==Blobs::Models::CopyStatus::Success)
+                    {
+                        curprogress.status = OutputProgress::StatusCopied;
+                        curprogress.outputCRC = curprogress.inputCRC;
+                    }
+                    else if (status==Blobs::Models::CopyStatus::Success)
+                    {
+                        curprogress.status =  OutputProgress::StatusActive;
+                        anyRemaining=true;
+                    }
+                    else
+                        return false; //Aborted or Failed -> return false to use older copy method
+                }
+                catch(const Azure::Core::RequestFailedException& e)
+                {
+                    IERRLOG("transferUsingAPI .poll() failed: %s (code %d)", e.ReasonPhrase.c_str(), static_cast<int>(e.StatusCode));
+                    return false;
+                }
+            }
+        }
+        if (!anyRemaining) break;
+        sleep(1); //does the the sleep period need to be smarter?
+    }
+    return true; // all copied successfully
+}
 
 void FileSprayer::removeSource()
 {
@@ -2694,6 +2904,7 @@ void FileSprayer::setSource(IDistributedFile * source)
     {
         Owned<IDistributedFilePart> curPart = source->getPart(idx);
         RemoteFilename rfn;
+
         FilePartInfo & next = * new FilePartInfo(curPart->getFilename(rfn));
         next.extractExtra(*curPart);
         if (curPart->numCopies()>1)
@@ -3161,12 +3372,22 @@ void FileSprayer::spray()
     throwExceptionIfAborting();
 
     beforeTransfer();
-    if (usePushWholeOperation())
-        pushWholeParts();
-    else if (usePullOperation())
-        pullParts();
-    else
-        pushParts();
+    bool copiedAlready = false;
+    if (useAPICopy())
+    {
+        DBGLOG("transferUsingAPI");
+        if (transferUsingAPI())
+            copiedAlready = true;
+    }
+    if (!copiedAlready)
+    {
+        if (usePushWholeOperation())
+            pushWholeParts();
+        else if (usePullOperation())
+            pullParts();
+        else
+            pushParts();
+    }
     afterTransfer();
 
     //If got here then we have succeeded
