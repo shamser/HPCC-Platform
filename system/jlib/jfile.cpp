@@ -2125,10 +2125,17 @@ static void sync_file_region(int fd, offset_t offset, offset_t nbytes)
 size32_t CFileIO::write(offset_t pos, size32_t len, const void * data)
 {
     CCycleTimer timer;
+    if (pos>3000000)
+    {
+        sleep(10);
+        throw makeOsException(DISK_FULL_EXCEPTION_CODE, "CFileIO::write2");
+    }
     size32_t ret = pwrite(file,data,len,pos);
     stats.ioWriteCycles.fetch_add(timer.elapsedCycles());
     stats.ioWriteBytes.fetch_add(ret);
     ++stats.ioWrites;
+    DBGLOG("CFileIO::write(offset_t pos=%d, size32_t len=%ld)", (int) pos, (long int) len);
+    DBGLOG("CFileIO::write %d %ld", (int) stats.ioWrites, (long) stats.ioWriteBytes);
 
     if (ret==(size32_t)-1)
         throw makeErrnoException(errno, "CFileIO::write");
@@ -7275,6 +7282,7 @@ unsigned __int64 FileIOStats::getStatistic(StatisticKind kind)
     case StSizeDiskRead:
         return ioReadBytes.load();
     case StSizeDiskWrite:
+    DBGLOG("FileIOStats::getStatistic StSizeDiskWrite %ld", (long) ioWriteBytes.load());
         return ioWriteBytes.load();
     case StNumDiskReads:
         return ioReads.load();

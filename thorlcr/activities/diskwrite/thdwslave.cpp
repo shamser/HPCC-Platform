@@ -51,6 +51,9 @@ protected:
             }
             out->putRow(r.getClear());
             processed++;
+            //if ((processed&THORDATALINK_COUNT_MASK)>250000)
+            //  throw makeStringException(99, "CDiskWriteSlaveActivity fail");
+
         }
     }
 

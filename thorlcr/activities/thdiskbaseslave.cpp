@@ -554,8 +554,16 @@ void CDiskWriteSlaveActivityBase::abort()
 // NB: always called within statsCs crit
 void CDiskWriteSlaveActivityBase::gatherActiveStats(CRuntimeStatisticCollection &activeStats) const
 {
+    DBGLOG("CDiskWriteSlaveActivityBase::gatherActiveStats");
     PARENT::gatherActiveStats(activeStats);
     mergeStats(activeStats, outputIO, diskWriteRemoteStatistics);
+unsigned max = diskWriteRemoteStatistics.numStatistics();
+for (unsigned i=0; i < max; i++)
+{
+    StatisticKind kind = diskWriteRemoteStatistics.getKind(i);
+    stat_type v = activeStats.getStatisticValue(kind);
+    DBGLOG("gatherStats mergeStatistic %s = %lld", queryStatisticName(kind), (long long) v);
+}
     activeStats.setStatistic(StPerReplicated, replicateDone);
 }
 
@@ -654,6 +662,7 @@ void CDiskWriteSlaveActivityBase::endProcess()
 
 void CDiskWriteSlaveActivityBase::processDone(MemoryBuffer &mb)
 {
+    DBGLOG("CDiskWriteSlaveActivityBase::processDone");
     if (abortSoon)
         return;
     rowcount_t _processed = processed & THORDATALINK_COUNT_MASK;

@@ -62,9 +62,9 @@ public:
     virtual void preStart(size32_t parentExtractSz, const byte *parentExtract);
     virtual void init();
     virtual void serializeSlaveData(MemoryBuffer &dst, unsigned slave);
+    virtual stat_type getSpillSize(unsigned node) const override;
     virtual void done();
     virtual void slaveDone(size32_t slaveIdx, MemoryBuffer &mb);
-    virtual void getActivityStats(IStatisticGatherer & stats);
 };
 
 

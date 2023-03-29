@@ -2731,6 +2731,7 @@ void CMasterGraph::handleSlaveDone(unsigned node, MemoryBuffer &mb)
 
 void CMasterGraph::getFinalProgress()
 {
+    DBGLOG("CMasterGraph::getFinalProgress");
     CMessageBuffer msg;
     mptag_t replyTag = queryJobChannel().queryMPServer().createReplyTag();
     msg.setReplyTag(replyTag);
@@ -2780,6 +2781,7 @@ void CMasterGraph::getFinalProgress()
             continue;
 
         unsigned channelsPerSlave = globals->getPropInt("@channelsPerSlave", 1); // JCSMORE - should move somewhere common
+        totalActiveSpillSize = graphSpillSize = 0;
         for (unsigned sc=0; sc<channelsPerSlave; sc++)
         {
             unsigned slave;
@@ -2837,16 +2839,20 @@ void CMasterGraph::setComplete(bool tf)
 bool CMasterGraph::deserializeStats(unsigned node, MemoryBuffer &mb)
 {
     CriticalBlock b(createdCrit);
-
+DBGLOG("CMasterGraph::deserializeStats");
     graphStats.deserialize(node, mb);
+DBGLOG("CMasterGraph::deserializeStats deserialized graphStats");
     unsigned count;
     mb.read(count);
+DBGLOG("CMasterGraph::deserializeStats count %d", (int)count);
     if (count)
         setProgressUpdated();
+    stat_type spillSize = 0;
     while (count--)
     {
         activity_id activityId;
         mb.read(activityId);
+        DBGLOG("CMasterGraph::deserializeStats activityId %d", (int) activityId);
         CMasterActivity *activity = NULL;
         CMasterGraphElement *element = (CMasterGraphElement *)queryElement(activityId);
         if (element)
@@ -2878,7 +2884,11 @@ bool CMasterGraph::deserializeStats(unsigned node, MemoryBuffer &mb)
                 }
             }
             if (activity)
+            {
+                DBGLOG("CMasterGraph::deserializeStats OK activityId %d", (int) activityId);
                 activity->deserializeStats(node, mb);
+                spillSize += activity->getSpillSize(node);
+            }
         }
         else
         {
@@ -2886,6 +2896,9 @@ bool CMasterGraph::deserializeStats(unsigned node, MemoryBuffer &mb)
             return false; // don't know if or how this could happen, but all bets off with packet if did.
         }
     }
+    DBGLOG("CMasterGraph::deserializeStats spillSize %d", (int)spillSize);
+    if (spillSize)
+        graphStats.setStatistic(node, StSizeSpillFile, spillSize);
     unsigned subs;
     mb.read(subs);
     while (subs--)

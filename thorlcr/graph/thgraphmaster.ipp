@@ -73,6 +73,11 @@ public:
             total += nodeStats[n]->getValue(index);
         return total;
     }
+    stat_type getStatistic(unsigned node, StatisticKind kind) const
+    {
+        unsigned index = mapping.getIndex(kind);
+        return nodeStats[node]->getValue(index);
+    }
 };
 
 class graphmaster_decl CThorEdgeCollection : public CThorStatsCollection
@@ -291,6 +296,7 @@ public:
     virtual void done();
     virtual void kill();
     virtual cost_type getDiskAccessCost() const { return diskAccessCost; }
+    virtual stat_type getSpillSize(unsigned node) const { return 0; }
 
 // IExceptionHandler
     virtual bool fireException(IException *e);

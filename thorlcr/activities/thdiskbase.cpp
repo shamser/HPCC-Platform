@@ -399,6 +399,17 @@ void CWriteMasterBase::serializeSlaveData(MemoryBuffer &dst, unsigned slave)
         fileDesc->queryPart(targetOffset+slave)->serialize(dst);
 }
 
+
+stat_type CWriteMasterBase::getSpillSize(unsigned node) const
+{
+    if (container.getKind()==TAKspillwrite)
+    {
+        return statsCollection.getStatistic(node, StSizeDiskWrite);
+    }
+    else
+        return 0;
+}
+
 void CWriteMasterBase::done()
 {
     CMasterActivity::done();
@@ -440,12 +451,6 @@ void CWriteMasterBase::slaveDone(size32_t slaveIdx, MemoryBuffer &mb)
         props.setPropInt64("@recordCount", slaveProcessed);
     }
 }
-
-void CWriteMasterBase::getActivityStats(IStatisticGatherer & stats)
-{
-    CMasterActivity::getActivityStats(stats);
-}
-
 
 /////////////////
 rowcount_t getCount(CActivityBase &activity, unsigned partialResults, rowcount_t limit, mptag_t mpTag)
