@@ -2696,31 +2696,35 @@ cost_type aggregateDiskAccessCost(const IConstWorkUnit * wu, const char *scope)
     return totalCost;
 }
 
-// totalSizeSpill and peakSizeSpill should be initialized to zero
-void gatherSpillSize(const IConstWorkUnit * wu, const char *scope, stat_type & totalSizeSpill, stat_type & peakSizeSpill)
+void gatherSpillSize(const IConstWorkUnit * wu, const char *scope, stat_type & peakSizeSpill)
 {
     WuScopeFilter filter;
     if (!isEmptyString(scope))
+    {
         filter.addScope(scope);
+        //filter.addSource(SSFsearchGraph);
+        filter.addSource(SSFsearchGraphStats);
+    }
     else
+    {
         filter.addScope("");
-    filter.setIncludeNesting(2);
-    filter.addSource("global");
-    filter.addOutputStatistic(StSizeSpillFile);
-    filter.addOutputStatistic(StSizePeakSpillFile);
+        filter.addSource("global");
+    }
+    filter.setIncludeNesting(1);
+    filter.addOutputStatistic(StPeakSizeGraphSpill);
+    filter.addRequiredStat(StPeakSizeGraphSpill);
     filter.finishedFilter();
     Owned<IConstWUScopeIterator> it = &wu->getScopeIterator(filter);
+    peakSizeSpill = 0;
     for (it->first(); it->isValid(); )
     {
+        DBGLOG("gatherSpillSize %s", it->queryScope());
         stat_type value = 0;
-        if (it->getStat(StSizeSpillFile, value))
+        if (it->getStat(StPeakSizeGraphSpill, value))
         {
-            totalSizeSpill += value;
-            if (it->getStat(StSizePeakSpillFile, value))
-            {
-                if (value>peakSizeSpill)
-                    peakSizeSpill = value;
-            }
+            DBGLOG("value %" I64F "u", value);
+            if (value>peakSizeSpill)
+                peakSizeSpill = value;
             it->nextSibling();
         }
         else
@@ -2732,13 +2736,11 @@ void gatherSpillSize(const IConstWorkUnit * wu, const char *scope, stat_type & t
 
 void updateSpillSize(IWorkUnit * wu, const char * scope, StatisticScopeType scopeType)
 {
-    stat_type totalSizeSpill = 0, peakSizeSpill = 0;
-    gatherSpillSize(wu, scope, totalSizeSpill, peakSizeSpill);
-    if (totalSizeSpill)
-    {
-        wu->setStatistic(queryStatisticsComponentType(), queryStatisticsComponentName(), scopeType, scope, StSizePeakSpillFile, nullptr, peakSizeSpill, 1, 0, StatsMergeReplace);
-        wu->setStatistic(queryStatisticsComponentType(), queryStatisticsComponentName(), scopeType, scope, StSizeSpillFile, nullptr, totalSizeSpill, 1, 0, StatsMergeReplace);
-    }
+    stat_type peakSizeSpill = 0;
+    gatherSpillSize(wu, scope, peakSizeSpill);
+    DBGLOG("updateSpillSize scope:%s peak: %" I64F "u", scope, peakSizeSpill);
+    if (peakSizeSpill)
+        wu->setStatistic(queryStatisticsComponentType(), queryStatisticsComponentName(), scopeType, scope, StPeakSizeGraphSpill, nullptr, peakSizeSpill, 1, 0, StatsMergeMax);
 }
 //---------------------------------------------------------------------------------------------------------------------
 

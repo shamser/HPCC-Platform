@@ -97,6 +97,7 @@ enum StatisticMeasure
     SMeasureId,                         // An Id for an element
     SMeasureFilename,                   // A filename
     SMeasureCost,                       // Used to measure cost
+    SMeasurePeakSize,
     SMeasureMax,
 };
 
@@ -269,7 +270,6 @@ enum StatisticKind
     StCycleLeafFetchCycles,
     StTimeBlobFetch,
     StCycleBlobFetchCycles,
-    StSizePeakSpillFile,
     StTimeAgentQueue,
     StCycleAgentQueueCycles,
     StTimeIBYTIDelay,
@@ -279,6 +279,7 @@ enum StatisticKind
     StWhenK8sLaunched,
     StWhenK8sStarted,
     StWhenK8sReady,
+    StPeakSizeGraphSpill,
     StMax,
 
     //For any quantity there is potentially the following variants.
