@@ -2057,8 +2057,8 @@ protected:
     bool setupDist = true;
     bool isAll = false;
 public:
-    HashDistributeSlaveBase(CGraphElementBase *_container)
-        : CSlaveActivity(_container)
+    HashDistributeSlaveBase(CGraphElementBase *_container, const StatisticsMapping &statsMapping = basicActivityStatistics)
+        : CSlaveActivity(_container, statsMapping)
     {
         appendOutputLinked(this);
     }
@@ -2454,6 +2454,7 @@ public:
 class IndexDistributeSlaveActivity : public HashDistributeSlaveBase
 {
     typedef HashDistributeSlaveBase PARENT;
+    CThorContextLogger contextLogger;
 
     class CKeyLookup : implements IHash
     {
@@ -2466,13 +2467,14 @@ class IndexDistributeSlaveActivity : public HashDistributeSlaveBase
         CKeyLookup(IndexDistributeSlaveActivity &_owner, IHThorKeyedDistributeArg *_helper, IKeyIndex *_tlk)
             : owner(_owner), helper(_helper), tlk(_tlk)
         {
-            tlkManager.setown(createLocalKeyManager(helper->queryIndexRecordSize()->queryRecordAccessor(true), tlk, nullptr, helper->hasNewSegmentMonitors(), false));
+            tlkManager.setown(createLocalKeyManager(helper->queryIndexRecordSize()->queryRecordAccessor(true), tlk, &owner.contextLogger, helper->hasNewSegmentMonitors(), false));
             numslaves = owner.queryContainer().queryJob().querySlaves();
         }
         unsigned hash(const void *data)
         {
             helper->createSegmentMonitors(tlkManager, data);
             tlkManager->finishSegmentMonitors();
+            owner.contextLogger.updateStatsDeltaTo(owner.inactiveStats);
             tlkManager->reset();
             verifyex(tlkManager->lookup(false));
             tlkManager->releaseSegmentMonitors();
@@ -2484,7 +2486,7 @@ class IndexDistributeSlaveActivity : public HashDistributeSlaveBase
     } *lookup;
 
 public:
-    IndexDistributeSlaveActivity(CGraphElementBase *container) : PARENT(container), lookup(NULL)
+    IndexDistributeSlaveActivity(CGraphElementBase *container) : PARENT(container, hashJoinActivityStatistics), lookup(NULL)
     {
     }
     ~IndexDistributeSlaveActivity()

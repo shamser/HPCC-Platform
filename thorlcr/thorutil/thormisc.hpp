@@ -34,6 +34,7 @@
 #include "thexception.hpp"
 #include "thorcommon.hpp"
 #include "thor.hpp"
+#include "jstats.h"
 
 #ifdef GRAPH_EXPORTS
     #define graph_decl DECL_EXPORT
@@ -132,6 +133,7 @@ enum RegistryCode:unsigned { rc_register, rc_deregister };
 
 //statistics gathered by the different activities
 extern graph_decl const StatisticsMapping spillStatistics;
+extern graph_decl const StatisticsMapping jhtreeCacheStatistics;
 extern graph_decl const StatisticsMapping basicActivityStatistics;
 extern graph_decl const StatisticsMapping groupActivityStatistics;
 extern graph_decl const StatisticsMapping hashJoinActivityStatistics;
@@ -148,6 +150,7 @@ extern graph_decl const StatisticsMapping sortActivityStatistics;
 
 extern graph_decl const StatisticsMapping graphStatistics;
 extern graph_decl const StatisticsMapping indexReadStatistics;
+extern graph_decl const StatisticsMapping hashIndexDistribActivityStatistics;
 
 class BooleanOnOff
 {
@@ -606,6 +609,118 @@ extern graph_decl bool getExpertOptBool(const char *opt, bool dft=false);
 extern graph_decl __int64 getExpertOptInt64(const char *opt, __int64 dft=0);
 extern graph_decl StringBuffer &getExpertOptString(const char *opt, StringBuffer &out);
 
+////
+// IContextLogger
+class CThorContextLogger : implements IContextLogger, public CSimpleInterface
+{
+    unsigned traceLevel = 1;
+    LogTrace logTrace;
+    mutable CriticalSection statsCrit;
+    mutable CRuntimeStatisticCollection stats;
+
+public:
+    IMPLEMENT_IINTERFACE_USING(CSimpleInterface);
+
+    CThorContextLogger() : stats(jhtreeCacheStatistics, true)
+    {
+        if (globals->hasProp("@httpGlobalIdHeader"))
+            setHttpIdHeaderNames(globals->queryProp("@httpGlobalIdHeader"), globals->queryProp("@httpCallerIdHeader"));
+    }
+    virtual void CTXLOG(const char *format, ...) const override  __attribute__((format(printf,2,3)))
+    {
+        va_list args;
+        va_start(args, format);
+        CTXLOGva(MCdebugProgress, thorJob, NoLogMsgCode, format, args);
+        va_end(args);
+    }
+
+    virtual void CTXLOGva(const LogMsgCategory & cat, const LogMsgJobInfo & job, LogMsgCode code, const char *format, va_list args) const override  __attribute__((format(printf,5,0))) 
+    {
+        VALOG(cat, job, code, format, args);
+    }
+    virtual void logOperatorExceptionVA(IException *E, const char *file, unsigned line, const char *format, va_list args) const __attribute__((format(printf,5,0)))
+    {
+        StringBuffer ss;
+        ss.append("ERROR");
+        if (E)
+            ss.append(": ").append(E->errorCode());
+        if (file)
+            ss.appendf(": %s(%d) ", file, line);
+        if (E)
+            E->errorMessage(ss.append(": "));
+        if (format)
+            ss.append(": ").valist_appendf(format, args);
+        LOG(MCoperatorProgress, thorJob, "%s", ss.str());
+    }
+    virtual void noteStatistic(StatisticKind kind, unsigned __int64 value) const override
+    {
+        DBGLOG("noteStatistic %s = %" I64F "u", queryStatisticName(kind), value);
+        stats.addStatisticAtomic(kind, value);
+    }
+    virtual void setStatistic(StatisticKind kind, unsigned __int64 value) const override
+    {
+        DBGLOG("setStatistic %s = %" I64F "u", queryStatisticName(kind), value);
+        stats.setStatistic(kind, value);
+    }
+    virtual void mergeStats(const CRuntimeStatisticCollection &from) const override
+    {
+        if (from.isThreadSafeMergeSource())
+        {
+            stats.merge(from);
+        }
+        else
+        {
+            CriticalBlock block(statsCrit);
+            stats.merge(from);
+        }
+    }
+    virtual unsigned queryTraceLevel() const override
+    {
+        return traceLevel;
+    }
+    virtual void setGlobalId(const char *id, SocketEndpoint &ep, unsigned pid) override
+    {
+        logTrace.setGlobalId(id);
+    }
+    virtual void setCallerId(const char *id) override
+    {
+        logTrace.setCallerId(id);
+    }
+    virtual const char *queryGlobalId() const override
+    {
+        return logTrace.queryGlobalId();
+    }
+    virtual const char *queryLocalId() const override
+    {
+        return logTrace.queryLocalId();
+    }
+    virtual const char *queryCallerId() const override
+    {
+        return logTrace.queryCallerId();
+    }
+    virtual void setHttpIdHeaderNames(const char *global, const char *caller) override
+    {
+        logTrace.setHttpIdHeaderNames(global, caller);
+    }
+    virtual const char *queryGlobalIdHttpHeaderName() const override
+    {
+        return logTrace.queryGlobalIdHTTPHeaderName();
+    }
+    virtual const char *queryCallerIdHttpHeaderName() const override
+    {
+        return logTrace.queryCallerIdHTTPHeaderName();
+    }
+    void updateStatsDeltaTo(CRuntimeStatisticCollection &to)
+    {
+        CriticalBlock block(statsCrit);
+        to.updateDelta(to, stats);
+    }
+    void reset()
+    {
+        CriticalBlock block(statsCrit);
+        stats.reset();
+    }
+};
 
 #endif
 

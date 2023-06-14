@@ -1291,6 +1291,7 @@ class CKeyedJoinSlave : public CSlaveActivity, implements IJoinProcessor, implem
                 activity.inactiveStats.sumStatistic(StNumIndexSeeks, keyManager->querySeeks()-startSeeks);
                 activity.inactiveStats.sumStatistic(StNumIndexScans, keyManager->queryScans()-startScans);
                 activity.inactiveStats.sumStatistic(StNumIndexWildSeeks, keyManager->queryWildSeeks()-startWildSeeks);
+                activity.contextLogger.updateStatsDeltaTo(activity.inactiveStats);
             };
             COnScopeExit scoped(onScopeExitFunc);
             for (unsigned r=0; r<processing.ordinality() && !stopped; r++)
@@ -1317,7 +1318,7 @@ class CKeyedJoinSlave : public CSlaveActivity, implements IJoinProcessor, implem
                         joinGroup->setAtMostLimitHit(); // also clears existing rows
                         break;
                     }
-                    IContextLogger * ctxLogger = nullptr;
+                    IContextLogger * ctxLogger = nullptr; //doesn't need actual IContextLogger as KeyManager should have a IContextLogger
                     KLBlobProviderAdapter adapter(keyManager, ctxLogger);
                     byte const * keyRow = keyManager->queryKeyBuffer();
                     size_t fposOffset = keyManager->queryRowSize() - sizeof(offset_t);
@@ -2233,6 +2234,7 @@ class CKeyedJoinSlave : public CSlaveActivity, implements IJoinProcessor, implem
     CPartDescriptorArray allIndexParts;
     std::vector<unsigned> localIndexParts, localFetchPartMap;
     IArrayOf<IKeyIndex> tlkKeyIndexes;
+    CThorContextLogger contextLogger;
     Owned<IEngineRowAllocator> joinFieldsAllocator;
     OwnedConstThorRow defaultRight;
     unsigned joinFlags = 0;
@@ -2428,7 +2430,7 @@ class CKeyedJoinSlave : public CSlaveActivity, implements IJoinProcessor, implem
         {
             IKeyIndex *tlkKeyIndex = &tlkKeyIndexes.item(i);
             const RtlRecord &keyRecInfo = helper->queryIndexRecordSize()->queryRecordAccessor(true);
-            Owned<IKeyManager> tlkManager = createLocalKeyManager(keyRecInfo, nullptr, nullptr, helper->hasNewSegmentMonitors(), false);
+            Owned<IKeyManager> tlkManager = createLocalKeyManager(keyRecInfo, nullptr, &contextLogger, helper->hasNewSegmentMonitors(), false);
             tlkManager->setKey(tlkKeyIndex);
             keyManagers.append(*tlkManager.getClear());
         }
@@ -2463,7 +2465,7 @@ class CKeyedJoinSlave : public CSlaveActivity, implements IJoinProcessor, implem
     IKeyManager *createPartKeyManager(unsigned partNo, unsigned copy)
     {
         Owned<IKeyIndex> keyIndex = createPartKeyIndex(partNo, copy, false);
-        return createLocalKeyManager(helper->queryIndexRecordSize()->queryRecordAccessor(true), keyIndex, nullptr, helper->hasNewSegmentMonitors(), false);
+        return createLocalKeyManager(helper->queryIndexRecordSize()->queryRecordAccessor(true), keyIndex, &contextLogger, helper->hasNewSegmentMonitors(), false);
     }
     const void *preparePendingLookupRow(void *row, size32_t maxSz, const void *lhsRow, size32_t keySz)
     {
@@ -3044,6 +3046,7 @@ public:
             indexPartToSlaveMap.clear();
             dataPartToSlaveMap.clear();
             tlkKeyManagers.kill();
+            contextLogger.reset();
             partitionKey = false;
         }
         // decode data from master. NB: can be resent and differ if in global loop

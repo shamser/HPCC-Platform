@@ -78,15 +78,17 @@ protected:
     Owned<IFileIO> lazyIFileIO;
     mutable CriticalSection ioStatsCS;
     unsigned fileTableStart = NotFound;
+    CThorContextLogger contextLogger;
 
     template<class StatProvider>
     class CCaptureIndexStats
     {
         CRuntimeStatisticCollection &stats;
         StatProvider &statProvider;
+        CThorContextLogger &contextLogger;
         unsigned __int64 startSeeks = 0, startScans = 0, startWildSeeks = 0;
     public:
-        inline CCaptureIndexStats(CRuntimeStatisticCollection &_stats, StatProvider &_statProvider) : stats(_stats), statProvider(_statProvider)
+        inline CCaptureIndexStats(CRuntimeStatisticCollection &_stats, StatProvider &_statProvider,  CThorContextLogger &_contextLogger) : stats(_stats), statProvider(_statProvider), contextLogger(_contextLogger)
         {
             startSeeks = statProvider.querySeeks();
             startScans = statProvider.queryScans();
@@ -97,6 +99,7 @@ protected:
             stats.mergeStatistic(StNumIndexSeeks, statProvider.querySeeks() - startSeeks);
             stats.mergeStatistic(StNumIndexScans, statProvider.queryScans() - startScans);
             stats.mergeStatistic(StNumIndexWildSeeks, statProvider.queryWildSeeks() - startWildSeeks);
+            contextLogger.updateStatsDeltaTo(stats);
         }
     };
 
@@ -316,7 +319,7 @@ public:
                 rfn.getPath(path); // NB: use for tracing only, IDelayedFile uses IPartDescriptor and any copy
 
                 Owned<IKeyIndex> keyIndex = createKeyIndex(path, crc, *lazyIFileIO, (unsigned) -1, false);
-                Owned<IKeyManager> klManager = createLocalKeyManager(helper->queryDiskRecordSize()->queryRecordAccessor(true), keyIndex, nullptr, helper->hasNewSegmentMonitors(), false);
+                Owned<IKeyManager> klManager = createLocalKeyManager(helper->queryDiskRecordSize()->queryRecordAccessor(true), keyIndex, &contextLogger, helper->hasNewSegmentMonitors(), false);
                 if (localMerge)
                 {
                     if (!keyIndexSet)
@@ -343,7 +346,7 @@ public:
                     return createIndexLookup(keyManager);
                 }
             }
-            keyMergerManager.setown(createKeyMerger(helper->queryDiskRecordSize()->queryRecordAccessor(true), keyIndexSet, seekGEOffset, nullptr, helper->hasNewSegmentMonitors(), false));
+            keyMergerManager.setown(createKeyMerger(helper->queryDiskRecordSize()->queryRecordAccessor(true), keyIndexSet, seekGEOffset, &contextLogger, helper->hasNewSegmentMonitors(), false));
             const ITranslator *translator = translators.item(0);
             if (translator)
                 keyMergerManager->setLayoutTranslator(&translator->queryTranslator());
@@ -449,7 +452,7 @@ public:
         while (true)
         {
             {
-                CCaptureIndexStats<IIndexLookup> scoped(inactiveStats, *currentInput);
+                CCaptureIndexStats<IIndexLookup> scoped(inactiveStats, *currentInput, contextLogger);
                 ret = currentInput->nextKey();
                 if (ret)
                     break;
@@ -569,7 +572,7 @@ public:
                 break;
             if (keyManager)
                 prepareManager(keyManager);
-            CCaptureIndexStats<IIndexLookup> scoped(inactiveStats, *indexInput);
+            CCaptureIndexStats<IIndexLookup> scoped(inactiveStats, *indexInput, contextLogger);
             if (hard) // checkCount checks hard key count only.
                 count += indexInput->checkCount(keyedLimit-count); // part max, is total limit [keyedLimit] minus total so far [count]
             else
@@ -605,6 +608,7 @@ public:
             translators.kill();
             keyManagers.kill();
             keyMergerManager.clear();
+            contextLogger.reset();
         }
         else
             initialized = true;
@@ -833,7 +837,7 @@ class CIndexReadSlaveActivity : public CIndexReadSlaveBase
             helper->mapOutputToInput(tempBuilder, seek, numFields); // NOTE - weird interface to mapOutputToInput means that it STARTS writing at seekGEOffset...
             rawSeek = (byte *)temp;
         }
-        CCaptureIndexStats<IKeyManager> scoped(inactiveStats, *currentManager);
+        CCaptureIndexStats<IKeyManager> scoped(inactiveStats, *currentManager, contextLogger);
         if (!currentManager->lookupSkip(rawSeek, seekGEOffset, seekSize))
             return NULL;
         const byte *row = currentManager->queryKeyBuffer();
@@ -1155,7 +1159,7 @@ public:
                     if (keyManager)
                         prepareManager(keyManager);
 
-                    CCaptureIndexStats<IIndexLookup> scoped(inactiveStats, *indexInput);
+                    CCaptureIndexStats<IIndexLookup> scoped(inactiveStats, *indexInput, contextLogger);
                     while (true)
                     {
                         const void *key = indexInput->nextKey();
@@ -1314,7 +1318,7 @@ public:
                         if (keyManager)
                             prepareManager(keyManager);
 
-                        CCaptureIndexStats<IIndexLookup> scoped(inactiveStats, *indexInput);
+                        CCaptureIndexStats<IIndexLookup> scoped(inactiveStats, *indexInput, contextLogger);
                         while (true)
                         {
                             const void *key = indexInput->nextKey();
