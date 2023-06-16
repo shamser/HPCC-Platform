@@ -1291,7 +1291,7 @@ class CKeyedJoinSlave : public CSlaveActivity, implements IJoinProcessor, implem
                 activity.inactiveStats.sumStatistic(StNumIndexSeeks, keyManager->querySeeks()-startSeeks);
                 activity.inactiveStats.sumStatistic(StNumIndexScans, keyManager->queryScans()-startScans);
                 activity.inactiveStats.sumStatistic(StNumIndexWildSeeks, keyManager->queryWildSeeks()-startWildSeeks);
-                activity.contextLogger.updateStatsDeltaTo(activity.inactiveStats);
+                activity.contextLogger.updateStatsDeltaTo(activity.inactiveStats, activity.inactiveStats);
             };
             COnScopeExit scoped(onScopeExitFunc);
             for (unsigned r=0; r<processing.ordinality() && !stopped; r++)
@@ -2448,7 +2448,7 @@ class CKeyedJoinSlave : public CSlaveActivity, implements IJoinProcessor, implem
 
         if (delayed)
         {
-            Owned<IFileIO> lazyIFileIO = queryThor().queryFileCache().lookupIFileIO(*this, indexName, filePart, nullptr, indexReadStatistics);
+            Owned<IFileIO> lazyIFileIO = queryThor().queryFileCache().lookupIFileIO(*this, indexName, filePart, nullptr);
             Owned<IDelayedFile> delayedFile = createDelayedFile(lazyIFileIO);
             return createKeyIndex(filename, crc, *delayedFile, (unsigned) -1, false);
         }
@@ -2458,7 +2458,7 @@ class CKeyedJoinSlave : public CSlaveActivity, implements IJoinProcessor, implem
              * But that's okay, because we are only here on demand.
              * The underlying IFileIO can later be closed by fhe file caching mechanism.
              */
-            Owned<IFileIO> lazyIFileIO = queryThor().queryFileCache().lookupIFileIO(*this, indexName, filePart, nullptr, indexReadStatistics);
+            Owned<IFileIO> lazyIFileIO = queryThor().queryFileCache().lookupIFileIO(*this, indexName, filePart, nullptr);
             return createKeyIndex(filename, crc, *lazyIFileIO, (unsigned) -1, false);
         }
     }

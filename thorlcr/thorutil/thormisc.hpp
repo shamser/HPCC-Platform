@@ -149,7 +149,6 @@ extern graph_decl const StatisticsMapping diskWriteActivityStatistics;
 extern graph_decl const StatisticsMapping sortActivityStatistics;
 
 extern graph_decl const StatisticsMapping graphStatistics;
-extern graph_decl const StatisticsMapping indexReadStatistics;
 extern graph_decl const StatisticsMapping hashIndexDistribActivityStatistics;
 
 class BooleanOnOff
@@ -710,10 +709,13 @@ public:
     {
         return logTrace.queryCallerIdHTTPHeaderName();
     }
-    void updateStatsDeltaTo(CRuntimeStatisticCollection &to)
+    CRuntimeStatisticCollection &queryStats()
     {
-        CriticalBlock block(statsCrit);
-        to.updateDelta(to, stats);
+        return stats;
+    }
+    void updateStatsDeltaTo(CRuntimeStatisticCollection &to, CRuntimeStatisticCollection &previous)
+    {
+        previous.updateDelta(to, stats);
     }
     void reset()
     {

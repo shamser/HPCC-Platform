@@ -2474,7 +2474,7 @@ class IndexDistributeSlaveActivity : public HashDistributeSlaveBase
         {
             helper->createSegmentMonitors(tlkManager, data);
             tlkManager->finishSegmentMonitors();
-            owner.contextLogger.updateStatsDeltaTo(owner.inactiveStats);
+            owner.contextLogger.updateStatsDeltaTo(owner.inactiveStats, owner.inactiveStats);
             tlkManager->reset();
             verifyex(tlkManager->lookup(false));
             tlkManager->releaseSegmentMonitors();

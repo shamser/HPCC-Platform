@@ -79,29 +79,7 @@ protected:
     mutable CriticalSection ioStatsCS;
     unsigned fileTableStart = NotFound;
     CThorContextLogger contextLogger;
-
-    template<class StatProvider>
-    class CCaptureIndexStats
-    {
-        CRuntimeStatisticCollection &stats;
-        StatProvider &statProvider;
-        CThorContextLogger &contextLogger;
-        unsigned __int64 startSeeks = 0, startScans = 0, startWildSeeks = 0;
-    public:
-        inline CCaptureIndexStats(CRuntimeStatisticCollection &_stats, StatProvider &_statProvider,  CThorContextLogger &_contextLogger) : stats(_stats), statProvider(_statProvider), contextLogger(_contextLogger)
-        {
-            startSeeks = statProvider.querySeeks();
-            startScans = statProvider.queryScans();
-            startWildSeeks = statProvider.queryWildSeeks();
-        }
-        inline ~CCaptureIndexStats()
-        {
-            stats.mergeStatistic(StNumIndexSeeks, statProvider.querySeeks() - startSeeks);
-            stats.mergeStatistic(StNumIndexScans, statProvider.queryScans() - startScans);
-            stats.mergeStatistic(StNumIndexWildSeeks, statProvider.queryWildSeeks() - startWildSeeks);
-            contextLogger.updateStatsDeltaTo(stats);
-        }
-    };
+    CStatsCtxLoggerDeltaUpdater statsUpdater;
 
     class TransformCallback : implements IThorIndexCallback , public CSimpleInterface
     {
@@ -448,11 +426,11 @@ public:
         if (eoi)
             return nullptr;
         dbgassertex(currentInput);
+        CStatsScopedThresholdDeltaUpdater scoped(statsUpdater);
         const void *ret = nullptr;
         while (true)
         {
             {
-                CCaptureIndexStats<IIndexLookup> scoped(inactiveStats, *currentInput, contextLogger);
                 ret = currentInput->nextKey();
                 if (ret)
                     break;
@@ -545,7 +523,8 @@ public:
     }
 public:
     CIndexReadSlaveBase(CGraphElementBase *container)
-        : CSlaveActivity(container, indexReadActivityStatistics), callback(*this)
+        : CSlaveActivity(container, indexReadActivityStatistics), callback(*this),
+          statsUpdater(jhtreeCacheStatistics, *this, contextLogger)
     {
         helper = (IHThorIndexReadBaseArg *)container->queryHelper();
         limitTransformExtra = nullptr;
@@ -572,7 +551,7 @@ public:
                 break;
             if (keyManager)
                 prepareManager(keyManager);
-            CCaptureIndexStats<IIndexLookup> scoped(inactiveStats, *indexInput, contextLogger);
+            CStatsScopedThresholdDeltaUpdater scoped(statsUpdater);
             if (hard) // checkCount checks hard key count only.
                 count += indexInput->checkCount(keyedLimit-count); // part max, is total limit [keyedLimit] minus total so far [count]
             else
@@ -609,6 +588,9 @@ public:
             keyManagers.kill();
             keyMergerManager.clear();
             contextLogger.reset();
+            // NB: think wouldn't need this if contextLogger was *not* reset
+            // because if re-executing, stop() was called and it is already in sync with contextLogger stats.
+            statsUpdater.resetStart();
         }
         else
             initialized = true;
@@ -837,7 +819,7 @@ class CIndexReadSlaveActivity : public CIndexReadSlaveBase
             helper->mapOutputToInput(tempBuilder, seek, numFields); // NOTE - weird interface to mapOutputToInput means that it STARTS writing at seekGEOffset...
             rawSeek = (byte *)temp;
         }
-        CCaptureIndexStats<IKeyManager> scoped(inactiveStats, *currentManager, contextLogger);
+        CStatsScopedThresholdDeltaUpdater scoped(statsUpdater);
         if (!currentManager->lookupSkip(rawSeek, seekGEOffset, seekSize))
             return NULL;
         const byte *row = currentManager->queryKeyBuffer();
@@ -990,6 +972,7 @@ public:
 // IRowStream
     virtual void stop() override
     {
+        CStatsScopedDeltaUpdater scoped(statsUpdater);
         if (RCMAX != keyedLimit) // NB: will not be true if nextRow() has handled
         {
             keyedLimitCount = sendGetCount(keyedProcessed);
@@ -1159,7 +1142,7 @@ public:
                     if (keyManager)
                         prepareManager(keyManager);
 
-                    CCaptureIndexStats<IIndexLookup> scoped(inactiveStats, *indexInput, contextLogger);
+                    CStatsScopedThresholdDeltaUpdater scoped(statsUpdater);
                     while (true)
                     {
                         const void *key = indexInput->nextKey();
@@ -1318,7 +1301,7 @@ public:
                         if (keyManager)
                             prepareManager(keyManager);
 
-                        CCaptureIndexStats<IIndexLookup> scoped(inactiveStats, *indexInput, contextLogger);
+                        CStatsScopedThresholdDeltaUpdater scoped(statsUpdater);
                         while (true)
                         {
                             const void *key = indexInput->nextKey();
