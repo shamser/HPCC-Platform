@@ -574,8 +574,10 @@ public:
 
     virtual void mergeStats(CRuntimeStatisticCollection & targetStats) const
     {
+        throwUnexpected();
         if (keyCursor)
             keyCursor->mergeStats(targetStats); // merge IO stats
+
     }
 };
 
