@@ -77,6 +77,7 @@
 #define HDSendPrintLog5(M,P1,P2,P3,P4)
 #endif
 
+
 class CDistributorBase : implements IHashDistributor, implements IExceptionHandler, public CInterface
 {
     Linked<IThorRowInterfaces> rowIf;
@@ -2649,6 +2650,7 @@ class CSpill : implements IRowWriter, public CSimpleInterface
     IThorRowInterfaces *rowIf;
     rowcount_t count;
     Owned<CFileOwner> spillFile;
+    Owned<IFileIO> spillFileIO;
     IRowWriter *writer;
     StringAttr desc;
     unsigned bucketN, rwFlags;
@@ -2683,9 +2685,10 @@ public:
             owner.getOpt(THOROPT_COMPRESS_SPILL_TYPE, compType);
             setCompFlag(compType, rwFlags);
         }
-        writer = createRowWriter(iFile, rowIf, rwFlags);
+        spillFileIO.setown(iFile->open((rwFlags & rw_extend)?IFOwrite:IFOcreate));
+        writer = createRowWriter(spillFileIO, rowIf, rwFlags);
     }
-    IRowStream *getReader(rowcount_t *_count=NULL) // NB: also detatches ownership of 'fileOwner'
+    IRowStream *getReader(rowcount_t *_count=NULL) // NB: also detaches ownership of 'fileOwner'
     {
         assertex(NULL == writer); // should have been closed
         Owned<CFileOwner> fileOwner = spillFile.getClear();
@@ -2706,17 +2709,27 @@ public:
     {
         if (NULL == writer)
             return;
-        flush();
+        writer->flush();
+        spillFileIO->flush();
         ::Release(writer);
         writer = NULL;
     }
+    bool isClosed() const
+    {
+        return (writer==NULL);
+    }
+    unsigned __int64 getStatistic(StatisticKind kind) const
+    {
+        return spillFileIO->getStatistic(kind);
+    }
+
 // IRowWriter
     virtual void putRow(const void *row)
     {
         writer->putRow(row);
         ++count; // NULL's too (but there won't be any in usage of this impl.)
     }
-    virtual void flush()
+    virtual void flush() override
     {
         writer->flush();
     }
@@ -2738,7 +2751,6 @@ class CBucket : public CSimpleInterface
     void doSpillHashTable();
     bool completed = false;
     bool streamed = false;
-
 public:
     CBucket(HashDedupSlaveActivityBase &_owner, IThorRowInterfaces *_rowIf, IThorRowInterfaces *_keyIf, bool _extractKey, unsigned _bucketN, CHashTableRowTable *_htRows);
     bool addKey(const void *key, unsigned hashValue);
@@ -2789,11 +2801,31 @@ public:
     {
         return completed;
     }
+    inline __int64 getStatistic(StatisticKind kind) const
+    {
+        switch (kind)
+        {
+        case StCycleDiskWriteIOCycles:
+            return rowSpill.getStatistic(StCycleDiskWriteIOCycles) + keySpill.getStatistic(StCycleDiskWriteIOCycles);
+        case StTimeDiskWriteIO:
+            return rowSpill.getStatistic(StTimeDiskWriteIO) + keySpill.getStatistic(StTimeDiskWriteIO);
+        case StSizeSpillFile:
+            return rowSpill.getStatistic(StSizeDiskWrite) + keySpill.getStatistic(StSizeDiskWrite);
+        case StNumDiskWrites:
+            return rowSpill.getStatistic(StNumDiskWrites) + keySpill.getStatistic(StNumDiskWrites);
+        case StNumSpills:
+            return 2; // 1 for row spill + 1 for key spill
+        default:
+            return 0;
+        }
+    }
 };
 
 class CBucketHandler : public CSimpleInterface, implements IInterface, implements roxiemem::IBufferedRowCallback
 {
+protected:
     HashDedupSlaveActivityBase &owner;
+private:
     IThorRowInterfaces *rowIf, *keyIf;
     IHash *iRowHash, *iKeyHash;
     ICompare *iCompare;
@@ -2807,6 +2839,11 @@ class CBucketHandler : public CSimpleInterface, implements IInterface, implement
     bool callbacksInstalled = false;
     unsigned nextBestBucket = 0;
     CriticalSection spillCrit;
+    RelaxedAtomic<__int64> statSizeSpill = 0;
+    RelaxedAtomic<__int64> statWriteCycles = 0;
+    RelaxedAtomic<__int64> statWriteNs = 0;
+    RelaxedAtomic<__int64> statNumWrites = 0;
+    RelaxedAtomic<__int64> statNumSpills = 0;
 
     rowidx_t getTotalBucketCount() const
     {
@@ -2857,6 +2894,14 @@ class CBucketHandler : public CSimpleInterface, implements IInterface, implement
             return false;
         }
     } postSpillFlush;
+    void addBucketStats(CBucket *bucket)
+    {
+        statSizeSpill.add_fetch(bucket->getStatistic(StSizeSpillFile));
+        statWriteCycles.add_fetch(bucket->getStatistic(StCycleDiskWriteIOCycles));
+        statWriteNs.add_fetch(bucket->getStatistic(StTimeDiskWriteIO));
+        statNumWrites.add_fetch(bucket->getStatistic(StNumDiskWrites));
+        statNumSpills.add_fetch(bucket->getStatistic(StNumSpills));
+    }
 public:
     IMPLEMENT_IINTERFACE_USING(CSimpleInterface);
 
@@ -2903,7 +2948,10 @@ public:
                 {
                     // If marked as done, then can close now (NB: must be closed before can be read by getNextBestRowStream())
                     if (bucket->isCompleted())
+                    {
                         bucket->closeSpillStreams(); // close stream now, to flush rows out in write streams, so ready to be read
+                        addBucketStats(bucket);
+                    }
                     return true;
                 }
             }
@@ -2942,7 +2990,10 @@ public:
         {
             CBucket &bucket = *buckets[cur];
             if (bucket.isSpilt())
+            {
                 bucket.closeSpillStreams(); // close stream now, to flush rows out in write streams, so ready to be read
+                addBucketStats(&bucket);
+            }
             else
                 bucket.setCompleted();
         }
@@ -2986,6 +3037,24 @@ public:
             }
         }
         return nullptr;
+    }
+    __int64 getStatistic(StatisticKind kind) const
+    {
+        switch(kind)
+        {
+            case StSizeSpillFile:
+                return statSizeSpill.load();
+            case StCycleDiskWriteIOCycles:
+                return statWriteCycles.load();
+            case StTimeDiskWriteIO:
+                return statWriteNs.load();
+            case StNumDiskWrites:
+                return statNumWrites.load();
+            case StNumSpills:
+                return statNumSpills.load();
+            default:
+                return 0;
+        }
     }
 };
 
@@ -3054,7 +3123,7 @@ public:
     IMPLEMENT_IINTERFACE_USING(CSlaveActivity);
 
     HashDedupSlaveActivityBase(CGraphElementBase *_container, bool _local)
-        : CSlaveActivity(_container), local(_local)
+        : CSlaveActivity(_container, hashDedupActivityStatistics), local(_local)
     {
         helper = (IHThorHashDedupArg *)queryHelper();
         initialNumBuckets = 0;
@@ -3563,6 +3632,7 @@ CBucketHandler::CBucketHandler(HashDedupSlaveActivityBase &_owner, IThorRowInter
 
 CBucketHandler::~CBucketHandler()
 {
+    mergeStats(owner.inactiveStats, this);
     if (callbacksInstalled)
     {
         owner.queryRowManager()->removeRowBuffer(this);
