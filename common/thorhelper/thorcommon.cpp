@@ -1631,19 +1631,23 @@ public:
 unsigned CRowStreamWriter::wrnum=0;
 #endif
 
+template<typename T>
+static IFileIO * createCompressedFileWriter(T file, IRowInterfaces *rowIf, unsigned flags, ICompressor *compressor, size32_t compressorBlkSz)
+{
+    size32_t fixedSize = rowIf->queryRowMetaData()->querySerializedDiskMeta()->getFixedSize();
+    if (fixedSize && TestRwFlag(flags, rw_grouped))
+        ++fixedSize; // row writer will include a grouping byte
+    ICompressedFileIO *compressedFileIO = createCompressedFileWriter(file, fixedSize, TestRwFlag(flags, rw_extend), TestRwFlag(flags, rw_compressblkcrc), compressor, getCompMethod(flags));
+    if (compressorBlkSz)
+        compressedFileIO->setBlockSize(compressorBlkSz);
+    return compressedFileIO;
+}
+
 IExtRowWriter *createRowWriter(IFile *iFile, IRowInterfaces *rowIf, unsigned flags, ICompressor *compressor, size32_t compressorBlkSz)
 {
     OwnedIFileIO iFileIO;
     if (TestRwFlag(flags, rw_compress))
-    {
-        size32_t fixedSize = rowIf->queryRowMetaData()->querySerializedDiskMeta()->getFixedSize();
-        if (fixedSize && TestRwFlag(flags, rw_grouped))
-            ++fixedSize; // row writer will include a grouping byte
-        ICompressedFileIO *compressedFileIO = createCompressedFileWriter(iFile, fixedSize, TestRwFlag(flags, rw_extend), TestRwFlag(flags, rw_compressblkcrc), compressor, getCompMethod(flags));
-        if (compressorBlkSz)
-            compressedFileIO->setBlockSize(compressorBlkSz);
-        iFileIO.setown(compressedFileIO);
-    }
+        iFileIO.setown(createCompressedFileWriter(iFile, rowIf, flags, compressor, compressorBlkSz));
     else
         iFileIO.setown(iFile->open((flags & rw_extend)?IFOwrite:IFOcreate));
     if (!iFileIO)
@@ -1654,15 +1658,10 @@ IExtRowWriter *createRowWriter(IFile *iFile, IRowInterfaces *rowIf, unsigned fla
 
 IExtRowWriter *createRowWriter(IFileIO *iFileIO, IRowInterfaces *rowIf, unsigned flags, ICompressor *compressor, size32_t compressorBlkSz)
 {
-    Owned<ICompressedFileIO> compressedFileIO;
+    Owned<IFileIO> compressedFileIO;
     if (TestRwFlag(flags, rw_compress))
     {
-        size32_t fixedSize = rowIf->queryRowMetaData()->querySerializedDiskMeta()->getFixedSize();
-        if (fixedSize && TestRwFlag(flags, rw_grouped))
-            ++fixedSize; // row writer will include a grouping byte
-        compressedFileIO.setown(createCompressedFileWriter(iFileIO, TestRwFlag(flags, rw_compressblkcrc), fixedSize, TestRwFlag(flags, rw_compressblkcrc), compressor, getCompMethod(flags)));
-        if (compressorBlkSz)
-            compressedFileIO->setBlockSize(compressorBlkSz);
+        compressedFileIO.setown(createCompressedFileWriter(iFileIO, rowIf, flags, compressor, compressorBlkSz));
         iFileIO = compressedFileIO.get();
     }
     Owned<IFileIOStream> stream;

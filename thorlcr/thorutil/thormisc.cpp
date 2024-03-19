@@ -92,7 +92,7 @@ const StatisticsMapping graphStatistics({StNumExecutions, StSizeSpillFile, StSiz
 const StatisticsMapping diskReadPartStatistics({StNumDiskRowsRead}, diskReadRemoteStatistics);
 const StatisticsMapping indexDistribActivityStatistics({}, basicActivityStatistics, jhtreeCacheStatistics);
 const StatisticsMapping soapcallActivityStatistics({}, basicActivityStatistics, soapcallStatistics);
-const StatisticsMapping hashDedupActivityStatistics({StNumSpills, StSizeSpillFile, StNumDiskWrites}, basicActivityStatistics);
+const StatisticsMapping hashDedupActivityStatistics({StNumSpills, StSizeSpillFile}, diskWriteRemoteStatistics, basicActivityStatistics);
 
 MODULE_INIT(INIT_PRIORITY_STANDARD)
 {
