@@ -89,4 +89,6 @@ SYSINFO_API unsigned deleteLogSysInfoMsg(ISysInfoLoggerMsgFilter * msgFilter);
 SYSINFO_API bool deleteLogSysInfoMsg(unsigned __int64 msgId);
 SYSINFO_API unsigned deleteOlderThanLogSysInfoMsg(bool visibleOnly, bool hiddenOnly, unsigned year, unsigned month, unsigned day);
 
+SYSINFO_API ILogMsgHandler * getDaliMsgLoggerHandler();
+SYSINFO_API void UseDaliForOperatorMessages(bool use=true);
 #endif

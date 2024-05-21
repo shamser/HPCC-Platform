@@ -3183,6 +3183,7 @@ public:
     void testInit()
     {
         daliClientInit();
+        UseDaliForOperatorMessages(false);
     }
     void testWrite()
     {
