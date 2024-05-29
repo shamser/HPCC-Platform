@@ -181,12 +181,12 @@ int main(int argc, const char *argv[])
     else
         removeLog();
 
-    if (!includeAll && includeNames.empty())
-    {
-        excludeNames.append("*stress*");
-        excludeNames.append("*timing*");
-        excludeNames.append("*slow*");
-    }
+    // if (!includeAll && includeNames.empty())
+    // {
+    //     excludeNames.append("*stress*");
+    //     excludeNames.append("*timing*");
+    //     excludeNames.append("*slow*");
+    // }
 
     if (!includeNames.length())
         includeNames.append("*");
