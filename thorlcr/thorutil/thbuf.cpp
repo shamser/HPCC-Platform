@@ -1175,6 +1175,10 @@ public:
             queryCOutput(c).reset();
         inMemRows->reset(0);
     }
+    virtual unsigned __int64 getStatistic(StatisticKind kind) override
+    {
+        return 0;
+    }
 friend class COutput;
 friend class CRowSet;
 };
@@ -1197,7 +1201,7 @@ bool CRowSet::Release() const
 
 class CSharedWriteAheadDisk : public CSharedWriteAheadBase
 {
-    Owned<IFile> spillFile;
+    Owned<CFileOwner> spillFile;
     Owned<IFileIO> spillFileIO;
     CIArrayOf<Chunk> freeChunks;
     PointerArrayOf<Chunk> freeChunksSized;
@@ -1206,6 +1210,8 @@ class CSharedWriteAheadDisk : public CSharedWriteAheadBase
     Linked<IEngineRowAllocator> allocator;
     Linked<IOutputRowDeserializer> deserializer;
     IOutputMetaData *serializeMeta;
+    size_t sizeSpilled = 0;
+    stat_type spillElapsedCycles = 0;
 
     struct AddRemoveFreeChunk
     {
@@ -1484,7 +1490,11 @@ class CSharedWriteAheadDisk : public CSharedWriteAheadBase
             mb.append((byte)0);
             size32_t len = mb.length();
             chunk.setown(getOutOffset(len)); // will find space for 'len', might be bigger if from free list
+            CCycleTimer startCycles;
             spillFileIO->write(chunk->offset, len, mb.toByteArray());
+            spillElapsedCycles += startCycles.elapsedCycles();
+            sizeSpilled += len;
+            spillFile->noteSize(highOffset);
 #ifdef TRACE_WRITEAHEAD
             ActPrintLogEx(&activity->queryContainer(), thorlog_all, MCdebugProgress, "Flushed chunk = %d (savedChunks pos=%d), writeOffset = %" I64F "d, writeSize = %d", inMemRows->queryChunk(), savedChunks.ordinality(), chunk->offset, len);
 #endif
@@ -1507,16 +1517,15 @@ public:
         allocator(rowIf->queryRowAllocator()), deserializer(rowIf->queryRowDeserializer()), serializeMeta(meta->querySerializedDiskMeta())
     {
         assertex(spillName);
-        spillFile.setown(createIFile(spillName));
-        spillFile->setShareMode(IFSHnone);
-        spillFileIO.setown(spillFile->open(IFOcreaterw));
+        Owned<IFile> tempFile  = createIFile(spillName);
+        tempFile->setShareMode(IFSHnone);
+        spillFile.setown(new CFileOwner(tempFile, activity->queryTempFileSizeTracker()));
+        spillFileIO.setown(spillFile->queryIFile().open(IFOcreaterw));
         highOffset = 0;
     }
     ~CSharedWriteAheadDisk()
     {
         spillFileIO.clear();
-        if (spillFile)
-            spillFile->remove();
 
         for (;;)
         {
@@ -1537,6 +1546,20 @@ public:
         freeChunksSized.kill();
         highOffset = 0;
         spillFileIO->setSize(0);
+    }
+    virtual unsigned __int64 getStatistic(StatisticKind kind) override
+    {
+        switch(kind)
+        {
+            case StSizeSpillFile:
+                return sizeSpilled;
+            case StTimeSpillElapsed:
+                return cycle_to_nanosec(spillElapsedCycles);
+            case StNumSpills:
+                return 1;
+            default:
+                return 0;
+        }
     }
 };
 

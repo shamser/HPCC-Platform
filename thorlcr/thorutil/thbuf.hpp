@@ -69,6 +69,7 @@ interface ISharedSmartBuffer : extends IRowWriter
     virtual IRowStream *queryOutput(unsigned output) = 0;
     virtual void cancel()=0;
     virtual void reset() = 0;
+    virtual unsigned __int64 getStatistic(StatisticKind kind) = 0;
 };
 
 extern graph_decl ISharedSmartBuffer *createSharedSmartMemBuffer(CActivityBase *activity, unsigned outputs, IThorRowInterfaces *rowif, unsigned buffSize=((unsigned)-1));

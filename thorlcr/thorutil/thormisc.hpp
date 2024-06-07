@@ -156,6 +156,7 @@ extern graph_decl const StatisticsMapping soapcallActivityStatistics;
 extern graph_decl const StatisticsMapping indexReadFileStatistics;
 extern graph_decl const StatisticsMapping hashDedupActivityStatistics;
 extern graph_decl const StatisticsMapping hashDistribActivityStatistics;
+extern graph_decl const StatisticsMapping nsplitterActivityStatistics;
 
 class BooleanOnOff
 {
@@ -356,9 +357,14 @@ public:
     }
     void noteSize(offset_t size)
     {
-        fileSize = size;
-        if (fileSizeTracker)
-            fileSizeTracker->growSize(fileSize);
+        if (fileSizeTracker && fileSize!=size)
+        {
+            if (size > fileSize)
+                fileSizeTracker->growSize(size-fileSize);
+            else
+                fileSizeTracker->shrinkSize(fileSize-size);
+            fileSize = size;
+        }
     }
     IFile &queryIFile() const { return *iFile; }
 };
