@@ -3846,7 +3846,7 @@ cost_type FileSprayer::updateSourceProperties()
                     cost_type curReadCost = calcFileAccessCost(subfile, 0, curProgress.numReads);
                     subfile->addAttrValue(getDFUQResultFieldName(DFUQRFnumDiskReads), curProgress.numReads);
                     cost_type legacyReadCost = getLegacyReadCost(subfile->queryAttributes(), subfile);
-                    subfile->addAttrValue(getDFUQResultFieldName(DFUQRFreadCost), curReadCost);
+                    subfile->addAttrValue(getDFUQResultFieldName(DFUQRFreadCost), legacyReadCost + curReadCost);
                     totalReadCost += curReadCost;
                 }
                 else
@@ -3863,7 +3863,7 @@ cost_type FileSprayer::updateSourceProperties()
         distributedSource->addAttrValue(getDFUQResultFieldName(DFUQRFnumDiskReads), totalNumReads);
         cost_type legacyReadCost = getLegacyReadCost(distributedSource->queryAttributes(), distributedSource);
         distributedSource->addAttrValue(getDFUQResultFieldName(DFUQRFreadCost), legacyReadCost + totalReadCost);
-        return totalReadCost;
+        return totalReadCost;  // return the total cost of this file operation (exclude previous and legacy read costs)
     }
     return 0;
 }
