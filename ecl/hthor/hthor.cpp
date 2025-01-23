@@ -8517,7 +8517,11 @@ void CHThorDiskReadBaseActivity::close()
     {
         IDistributedFile * dFile = ldFile->queryDistributedFile();
         if(dFile)
+        {
+            cost_type readCost = updateCostAndNumReads(dFile, numDiskReads, 0);
+            updateOwnersCostAndNumReads(dFile, numDiskReads, readCost);
             dFile->setAccessed();
+        }
         ldFile.clear();
     }
 }
@@ -8545,14 +8549,16 @@ void CHThorDiskReadBaseActivity::closepart()
             {
                 if (superfile)
                 {
-                    unsigned subfile, lnum;
-                    if (superfile->mapSubPart(previousPartNum, subfile, lnum))
+                    unsigned subfileNum, lnum;
+                    if (superfile->mapSubPart(previousPartNum, subfileNum, lnum))
                     {
-                        IDistributedSuperFile *super = dFile->querySuperFile();
-                        dFile = &(super->querySubFile(subfile, true));
+                        IDistributedSuperFile * super = dFile->querySuperFile();
+                        IDistributedFile & subfile = super->querySubFile(subfileNum, true);
+                        // Update numDiskReads and cost for the subfile
+                        // (numDiskReads and cost in owning files updated in CHThorDiskReadBaseActivity::close)
+                        updateCostAndNumReads(&subfile, curDiskReads, 0);
                     }
                 }
-                updateCostAndNumReads(dFile, curDiskReads);
             }
             numDiskReads += curDiskReads;
         }
