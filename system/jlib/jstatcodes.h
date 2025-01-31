@@ -327,7 +327,7 @@ enum StatisticKind
     StNumCacheDuplicates,
     StNumCacheEvictions,
     StNumDuplicateKeyCount,
-    StNumOffsetBranches,
+    StSizeOffsetBranches,
     StSizeBranchMemory,
     StSizeLeafMemory,
     StMax,

@@ -1000,7 +1000,7 @@ static const constexpr StatisticMeta statsMetaData[StMax] = {
     { NUMSTAT(CacheDuplicates), "The number of times an item was added to a cache by two threads at the same time" },
     { NUMSTAT(CacheEvictions), "The number of times an item was evicted from a cache" },
     { NUMSTAT(DuplicateKeyCount), "The number of duplicate keys" },
-    { NUMSTAT(OffsetBranches), "The number of offset branches" },
+    { SIZESTAT(OffsetBranches), "The 1st branch node offset position in the index" },
     { SIZESTAT(BranchMemory), "The size of branch memory" },
     { SIZESTAT(LeafMemory), "The size of leaf memory"},
 

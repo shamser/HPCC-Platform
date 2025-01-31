@@ -12845,7 +12845,7 @@ public:
             numLeafNodes = builder->getStatistic(StNumLeafCacheAdds);
             numBranchNodes = builder->getStatistic(StNumNodeCacheAdds);
             numBlobNodes = builder->getStatistic(StNumBlobCacheAdds);
-            offsetBranches = builder->getStatistic(StNumOffsetBranches);
+            offsetBranches = builder->getStatistic(StSizeOffsetBranches);
             originalBlobSize = bc.queryTotalSize();
             branchMemorySize = builder->getStatistic(StSizeBranchMemory);
             leafMemorySize = builder->getStatistic(StSizeLeafMemory);

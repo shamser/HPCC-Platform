@@ -1293,7 +1293,7 @@ void CHThorIndexWriteActivity::execute()
         totalBranchNodes += numBranchNodes;
         totalBlobNodes += numBlobNodes;
         numDiskWrites = io->getStatistic(StNumDiskWrites);
-        offsetBranches = builder->getStatistic(StNumOffsetBranches);
+        offsetBranches = builder->getStatistic(StSizeOffsetBranches);
         out->flush();
         out.clear();
         io->close();

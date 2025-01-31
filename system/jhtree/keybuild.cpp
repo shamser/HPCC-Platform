@@ -604,7 +604,7 @@ protected:
         {
         case StNumDuplicateKeyCount:
             return duplicateCount;
-        case StNumOffsetBranches:
+        case StSizeOffsetBranches:
             return offsetBranches;
         case StSizeBranchMemory:
             return indexCompressor->queryBranchMemorySize();

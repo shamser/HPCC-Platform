@@ -614,14 +614,8 @@ public:
             ifile->getTime(&createTime, &modifiedTime, &accessedTime);
             modifiedTime.serialize(mb);
             mb.append(partCrc);
-            mb.append(inactiveStats.getStatisticValue(StNumLeafCacheAdds));
-            mb.append(inactiveStats.getStatisticValue(StNumBlobCacheAdds));
-            mb.append(inactiveStats.getStatisticValue(StNumNodeCacheAdds));
-            mb.append(inactiveStats.getStatisticValue(StNumOffsetBranches));
             mb.append(uncompressedSize);
             mb.append(originalBlobSize);
-            mb.append(inactiveStats.getStatisticValue(StSizeBranchMemory));
-            mb.append(inactiveStats.getStatisticValue(StSizeLeafMemory));
 
             if (!singlePartKey && firstNode() && buildTlk)
             {
